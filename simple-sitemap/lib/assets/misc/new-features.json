@@ -1,0 +1,62 @@
+[
+	{
+		"type": "update",
+    "license": "free",
+    "banner_url": "custom-post-type-labels.png",
+    "version": "latest",
+    "date": "1st January 2023",
+    "title": "Custom Post Type Labels",
+    "description": "<p style='margin:15px 0;'>You can now edit the title labels for a post type via the sitemap block settings.</p>",
+    "learn_more_url": ""
+  },
+	{
+		"type": "new",
+    "license": "pro",
+    "banner_url": "optionally-exclude-child-pages.png",
+    "version": "latest",
+    "date": "1st January 2023",
+    "title": "Exclude Child Pages",
+    "description": "<p style='margin:15px 0;'>Use the new <code>exclude_child</code> shortcode attribute to optionally exclude the child pages of a specific page, that has been excluded from the sitemap.</p>",
+    "learn_more_url": ""
+  },
+  {
+		"type": "update",
+    "license": "pro",
+    "banner_url": "new-default-attribute-settings.png",
+    "version": "3.5.7",
+    "date": "22nd November 2021",
+    "title": "New Default Settings",
+    "description": "<p style='margin:15px 0;'>The <code>post_type_label_font_size</code> and <code>sitemap_container_margin</code> attributes in the sitemap blocks/shortcodes are now set to empty strings by default to blend in better with the current active WordPress theme.</p>",
+    "learn_more_url": ""
+  },
+  {
+    "type": "new",
+		"license": "free",
+    "banner_url": "new-sort-options.png",
+    "version": "3.5.7",
+    "date": "22nd November 2021",
+    "title": "New Sort Options",
+    "description": "<p style='margin:15px 0;'>New sort options (<em>Random Order, Menu Order, Comment Count</em>) have been added to the <strong>Orderby</strong> attribute for the main sitemap block and shortcode.</p>",
+    "learn_more_url": ""
+  },
+  {
+    "type": "new",
+		"license": "free",
+    "banner_url": "num-terms-attribute.png",
+    "version": "3.5.7",
+    "date": "22nd November 2021",
+    "title": "New Shortcode Attribute",
+    "description": "<p style='margin:15px 0;'>Added a new <strong><code>num_terms</code></strong> attribute to the <code>&#91;simple-sitemap-group&#93;</code> shortcode to limit the number of taxonomy terms displayed.</p>",
+    "learn_more_url": ""
+  },
+  {
+		"type": "new",
+    "license": "free",
+    "banner_url": "block-preview.png",
+    "version": "3.5.7",
+    "date": "22nd November 2021",
+    "title": "Preview Sitemap Blocks",
+    "description": "<p style='margin:15px 0;'>Added support for block previews in the editor for sitemap and sitemap group blocks, when browsing blocks.</p>",
+    "learn_more_url": ""
+  }
+]
