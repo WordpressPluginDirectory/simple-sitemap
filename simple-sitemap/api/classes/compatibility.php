@@ -10,6 +10,7 @@ namespace WPGO_Plugins\Plugin_Framework;
 class Compatibility_FW {
 
   protected $module_roots;
+  private $custom_plugin_data;
 
   /* Class constructor. */
 

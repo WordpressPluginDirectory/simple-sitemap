@@ -15,6 +15,13 @@ class Utility {
 	protected $module_roots;
 
 	/**
+	 * Custom plugin data.
+	 *
+	 * @var array
+	 */
+	protected $custom_plugin_data;
+	
+	/**
 	 * Main class constructor.
 	 *
 	 * @param array $module_roots Root plugin path/dir.

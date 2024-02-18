@@ -11,6 +11,8 @@ namespace WPGO_Plugins\Plugin_Framework;
 class Create_Duplicate_Post_FW
 {
   protected $module_roots;
+  private $custom_plugin_data;
+  private $plugin_data;
 
   /* Class constructor. */
   public function __construct( $module_roots, $plugin_data, $custom_plugin_data )

@@ -3,11 +3,11 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "X-Generator: babel-plugin-makepot\n"
 
-#: lib/src/blocks/_components/server-side-render-x.js:145
+#: lib/src/blocks/_components/server-side-render-x.js:151
 msgid "Block rendered as empty."
 msgstr ""
 
-#: lib/src/blocks/_components/server-side-render-x.js:151
+#: lib/src/blocks/_components/server-side-render-x.js:157
 #. %s: error message describing the problem
 msgid "Error loading block: %s"
 msgstr ""

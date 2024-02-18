@@ -14,6 +14,54 @@ class Enqueue_Scripts
      */
     protected  $module_roots ;
     /**
+     * An object of API utilities class.
+     *
+     * @var object
+     */
+    protected  $utilities_fw ;
+    /**
+     * Plugin framework new features.
+     *
+     * @var mixed
+     */
+    protected  $new_features_arr ;
+    /**
+     * Plugin data.
+     *
+     * @var array
+     */
+    protected  $plugin_data ;
+    /**
+     * Custom plugin data.
+     *
+     * @var array
+     */
+    protected  $custom_plugin_data ;
+    /**
+     * Plugin version.
+     *
+     * @var string
+     */
+    protected  $plugin_version ;
+    /**
+     * Enqueue prefix.
+     *
+     * @var string
+     */
+    protected  $enq_pfx ;
+    /**
+     * Plugin settings prefix.
+     *
+     * @var string
+     */
+    protected  $plugin_settings_prefix ;
+    /**
+     * Dependencies for JavaScripts.
+     *
+     * @var array
+     */
+    protected  $js_deps ;
+    /**
      * Main class constructor.
      *
      * @global type $pagenow

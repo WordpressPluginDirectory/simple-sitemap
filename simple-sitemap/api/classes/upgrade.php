@@ -9,6 +9,7 @@ namespace WPGO_Plugins\Plugin_Framework;
 class Upgrade_FW {
 
 	protected $module_roots;
+	protected $custom_plugin_data;
 
 	/* Class constructor. */
 	public function __construct( $module_roots, $custom_plugin_data ) {

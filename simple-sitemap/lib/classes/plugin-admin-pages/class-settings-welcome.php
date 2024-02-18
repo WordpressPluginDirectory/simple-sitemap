@@ -15,6 +15,62 @@ class Settings_Welcome {
 	protected $module_roots;
 
 	/**
+	 * Plugin data.
+	 *
+	 * @var array
+	 */
+	protected $plugin_data;
+
+	/**
+	 * Custom plugin data.
+	 *
+	 * @var array
+	 */
+	protected $custom_plugin_data;
+
+	/**
+	 * Freemius upgrade URL.
+	 *
+	 * @var string
+	 */
+	protected $freemius_upgrade_url;
+
+	/**
+	 * Freemius discount upgrade URL.
+	 *
+	 * @var string
+	 */
+	protected $freemius_discount_upgrade_url;
+
+	/**
+	 * New features URL.
+	 *
+	 * @var string
+	 */
+	protected $new_features_url;
+
+	/**
+	 * Admin URL.
+	 *
+	 * @var string
+	 */
+	protected $admin_url;
+
+	/**
+	 * Utility data.
+	 *
+	 * @var array
+	 */
+	protected $utility;
+
+	/**
+	 * Welcome slug.
+	 *
+	 * @var string
+	 */
+	protected $welcome_slug;
+	
+	/**
 	 * Main class constructor.
 	 *
 	 * @param array $module_roots Root plugin path/dir.

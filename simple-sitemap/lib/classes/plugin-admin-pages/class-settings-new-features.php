@@ -15,6 +15,62 @@ class Settings_New_Features {
 	protected $module_roots;
 
 	/**
+	 * Custom plugin data.
+	 *
+	 * @var array
+	 */
+	protected $custom_plugin_data;
+
+	/**
+	 * Freemius upgrade URL.
+	 *
+	 * @var string
+	 */
+	protected $freemius_upgrade_url;
+
+	/**
+	 * Freemius discount upgrade URL.
+	 *
+	 * @var string
+	 */
+	protected $freemius_discount_upgrade_url;
+
+	/**
+	 * Utility data.
+	 *
+	 * @var array
+	 */
+	protected $utility;
+
+	/**
+	 * Plugin framework new features.
+	 *
+	 * @var array
+	 */
+	protected $new_features_fw;
+
+	/**
+	 * New plugin features.
+	 *
+	 * @var array
+	 */
+	protected $new_features_arr;
+
+	/**
+	 * New features slug.
+	 *
+	 * @var string
+	 */
+	protected $new_features_slug;
+
+	/**
+	 * Plugin data.
+	 *
+	 * @var array
+	 */
+	protected $plugin_data;
+
+	/**
 	 * Main class constructor.
 	 *
 	 * @param array $module_roots Root plugin path/dir.

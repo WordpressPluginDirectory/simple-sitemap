@@ -14,6 +14,72 @@ class Settings
      */
     protected  $module_roots ;
     /**
+     * Plugin data.
+     *
+     * @var array
+     */
+    protected  $plugin_data ;
+    /**
+     * Custom plugin data.
+     *
+     * @var array
+     */
+    protected  $custom_plugin_data ;
+    /**
+     * Hook prefix for the plugin.
+     *
+     * @var string
+     */
+    protected  $hook_prefix ;
+    /**
+     * Freemius upgrade URL.
+     *
+     * @var string
+     */
+    protected  $freemius_upgrade_url ;
+    /**
+     * Utility class instance.
+     *
+     * @var array
+     */
+    protected  $utility ;
+    /**
+     * Settings framework instance.
+     *
+     * @var array
+     */
+    protected  $settings_fw ;
+    /**
+     * New features array from the plugin framework.
+     *
+     * @var array
+     */
+    protected  $new_features_arr ;
+    /**
+     * HTML for displaying the PRO attribute.
+     *
+     * @var string
+     */
+    protected  $pro_attribute ;
+    /**
+     * Slug for the settings page.
+     *
+     * @var string
+     */
+    protected  $settings_slug ;
+    /**
+     * Slug for the new features page.
+     *
+     * @var string
+     */
+    protected  $new_features_slug ;
+    /**
+     * Slug for the welcome page.
+     *
+     * @var string
+     */
+    protected  $welcome_slug ;
+    /**
      * Main class constructor.
      *
      * @param array $module_roots Root plugin path/dir.

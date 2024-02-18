@@ -10,7 +10,30 @@ namespace WPGO_Plugins\Plugin_Framework;
 */
 class Hooks_FW
 {
+    /**
+     * Common root paths/directories.
+     *
+     * @var array
+     */
     protected  $module_roots ;
+    /**
+     * Custom plugin data.
+     *
+     * @var array
+     */
+    protected  $custom_plugin_data ;
+    /**
+     * Freemius instance.
+     *
+     * @var object
+     */
+    protected  $fs ;
+    /**
+     * Hook prefix for the plugin.
+     *
+     * @var string
+     */
+    protected  $hook_prefix ;
     /* Class constructor. */
     public function __construct( $module_roots, $custom_plugin_data, $fs )
     {

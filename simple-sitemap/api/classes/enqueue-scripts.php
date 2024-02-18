@@ -8,6 +8,48 @@ namespace WPGO_Plugins\Plugin_Framework;
 
 class Enqueue_Framework_Scripts {
 
+	/**
+	 * Common root paths/directories.
+	 *
+	 * @var array
+	 */
+	protected $module_roots;
+
+	/**
+	 * New features array.
+	 *
+	 * @var array
+	 */
+	protected $new_features_arr;
+
+	/**
+	 * Plugin data.
+	 *
+	 * @var array
+	 */
+	protected $plugin_data;
+
+	/**
+	 * Custom plugin data.
+	 *
+	 * @var array
+	 */
+	protected $custom_plugin_data;
+
+	/**
+	 * Enqueue prefix.
+	 *
+	 * @var string
+	 */
+	protected $enq_pfx;
+
+	/**
+	 * JavaScript dependencies.
+	 *
+	 * @var array
+	 */
+	protected $js_deps;
+	
 	/* Class constructor. */
 	public function __construct( $module_roots, $new_features_arr, $plugin_data, $custom_plugin_data ) {
 		$this->module_roots       = $module_roots;

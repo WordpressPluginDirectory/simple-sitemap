@@ -14,6 +14,8 @@ class Custom_Sitemap_Endpoints {
 	 */
 	protected $module_roots;
 
+	private $rest_api_namespace;
+
 	/**
 	 * Main class constructor.
 	 *
