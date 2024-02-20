@@ -4,7 +4,7 @@ Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_i
 Tags: seo sitemap, html, sitemap, html sitemap, responsive sitemap
 Requires at least: 6.0
 Tested up to: 6.4
-Stable tag: 3.5.11
+Stable tag: 3.5.12
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -158,6 +158,10 @@ No. This plugin is for generating an HTML sitemap only.
 12. Show sitemap in a horizontal list separated by any character(s). [Pro]
 
 == Changelog ==
+
+= 3.5.12 - Feb 19, 2024 =
+
+* [fix] Updated server-side render component.
 
 = 3.5.11 - Feb 17, 2024 =
 

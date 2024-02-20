@@ -3,15 +3,6 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "X-Generator: babel-plugin-makepot\n"
 
-#: lib/src/blocks/_components/server-side-render-x.js:151
-msgid "Block rendered as empty."
-msgstr ""
-
-#: lib/src/blocks/_components/server-side-render-x.js:157
-#. %s: error message describing the problem
-msgid "Error loading block: %s"
-msgstr ""
-
 #: lib/src/blocks/extend-blocks.js:180
 msgid "Exclude associated child pages?"
 msgstr ""
@@ -28,49 +19,42 @@ msgstr ""
 msgid "Featured Image Settings"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap-group/index.js:30
-#: lib/src/blocks/simple-sitemap/index.js:29
-msgid "Sitemap"
-msgstr ""
-
-#: lib/src/blocks/simple-sitemap-group/index.js:31
-msgid "Group"
-msgstr ""
-
-#: lib/src/blocks/simple-sitemap-group/index.js:32
-#: lib/src/blocks/simple-sitemap/index.js:31
-msgid "HTML Sitemap"
-msgstr ""
-
-#: lib/src/blocks/simple-sitemap-group/index.js:76
-#: lib/src/blocks/simple-sitemap/index.js:216
+#: lib/src/blocks/simple-sitemap/index.js:215
 msgid "General Settings"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:286
+#: lib/src/blocks/simple-sitemap/index.js:28
+msgid "Sitemap"
+msgstr ""
+
+#: lib/src/blocks/simple-sitemap/index.js:285
 msgid "Open links in new tab"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:30
+#: lib/src/blocks/simple-sitemap/index.js:29
 msgid "Single"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:303
+#: lib/src/blocks/simple-sitemap/index.js:30
+msgid "HTML Sitemap"
+msgstr ""
+
+#: lib/src/blocks/simple-sitemap/index.js:302
 msgid "Post Types Labels"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:309
+#: lib/src/blocks/simple-sitemap/index.js:308
 msgid "Post type"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:327
+#: lib/src/blocks/simple-sitemap/index.js:326
 msgid "New Label"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:339
+#: lib/src/blocks/simple-sitemap/index.js:338
 msgid "Tab Settings"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:352
+#: lib/src/blocks/simple-sitemap/index.js:351
 msgid "Page Settings"
 msgstr ""
