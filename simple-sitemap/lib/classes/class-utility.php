@@ -64,31 +64,6 @@ class Utility {
 	}
 
 	/**
-	 * Build and return tab HTML. Numbered icon is added via JS.
-	 *
-	 * @param object $plugin_data All the settings and configurations of this plugin.
-	 * @return string $tabs_list_html formatted as HTML.
-	 */
-	public function build_settings_tabs_html( $plugin_data ) {
-
-		if ( SITEMAP_FREEMIUS_NAVIGATION === 'menu' ) {
-			return '';
-		}
-
-		$settings_page_main_url         = admin_url() . 'options-general.php?page=' . $this->custom_plugin_data->settings_pages['settings']['slug'];
-		$settings_page_new_features_url = admin_url() . 'options-general.php?page=' . $this->custom_plugin_data->settings_pages['new-features']['slug'];
-		$settings_page_welcome_url      = admin_url() . 'options-general.php?page=' . $this->custom_plugin_data->settings_pages['welcome']['slug'];
-
-		$main_active         = ( isset( $_GET['page'] ) && ( $_GET['page'] === $this->custom_plugin_data->settings_pages['settings']['slug'] ) ) ? ' nav-tab-active' : '';
-		$new_features_active = ( isset( $_GET['page'] ) && ( $_GET['page'] === $this->custom_plugin_data->settings_pages['new-features']['slug'] ) ) ? ' nav-tab-active' : '';
-		$welcome_active      = ( isset( $_GET['page'] ) && ( $_GET['page'] === $this->custom_plugin_data->settings_pages['welcome']['slug'] ) ) ? ' nav-tab-active' : '';
-
-		$tabs_list_html = '<h2 class="nav-tab-wrapper"><a href="' . $settings_page_main_url . '" class="nav-tab fs-tab' . $main_active . '">Settings</a><a href="' . $settings_page_new_features_url . '" class="nav-tab fs-tab' . $new_features_active . '">New Features</a><a href="' . $settings_page_welcome_url . '" class="nav-tab fs-tab' . $welcome_active . '">About</a></h2>';
-
-		return $tabs_list_html;
-	}
-
-	/**
 	 * Decode and return the JSON encoded string in the form of Object.
 	 *
 	 * @todo Add to framework plugin.

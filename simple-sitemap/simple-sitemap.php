@@ -4,7 +4,7 @@
 Plugin Name: Simple Sitemap
 Plugin URI: http://wordpress.org/plugins/simple-sitemap/
 Description: HTML sitemap to display content as a single linked list of posts, pages, or custom post types. You can even display posts in groups sorted by taxonomy!
-Version: 3.5.12
+Version: 3.5.14
 Author: David Gwyer
 Author URI: http://www.wpgoplugins.com
 Text Domain: simple-sitemap
@@ -32,27 +32,21 @@ if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
 // For now hard code this until a better method can be found.
-
 if ( !defined( 'SITEMAP_FREEMIUS_NAVIGATION' ) ) {
     define( 'SITEMAP_FREEMIUS_NAVIGATION', 'menu' );
     // Options: menu|tabs.
 }
-
-
 if ( function_exists( __NAMESPACE__ . '\\ss_fs' ) ) {
     ss_fs()->set_basename( false, __FILE__ );
 } else {
-    
     if ( !function_exists( __NAMESPACE__ . '\\ss_fs' ) ) {
         /**
          * Create a helper function for easy SDK access.
          *
          * @return object Freemius object instance.
          */
-        function ss_fs()
-        {
-            global  $ss_fs ;
-            
+        function ss_fs() {
+            global $ss_fs;
             if ( !isset( $ss_fs ) ) {
                 // Include Freemius SDK.
                 require_once dirname( __FILE__ ) . '/vendor/freemius/wordpress-sdk/start.php';
@@ -68,40 +62,37 @@ if ( function_exists( __NAMESPACE__ . '\\ss_fs' ) ) {
                     'has_addons'     => false,
                     'has_paid_plans' => true,
                     'menu'           => array(
-                    'slug'       => 'simple-sitemap-menu',
-                    'first-path' => 'admin.php?page=simple-sitemap-menu-welcome',
-                ),
+                        'slug'       => 'simple-sitemap-menu',
+                        'first-path' => 'admin.php?page=simple-sitemap-menu-welcome',
+                    ),
                     'is_live'        => true,
                 ) );
             }
-            
             return $ss_fs;
         }
-        
+
         // Init Freemius.
         ss_fs();
         // Signal that SDK was initiated.
         do_action( 'ss_fs_loaded' );
     }
-    
     /**
      * Main class constructor.
      *
      * @param array $module_roots Root plugin path/dir.
      */
-    class Main
-    {
+    class Main {
         /**
          * Common root paths/directories.
          *
          * @var $module_roots
          */
-        public static  $module_roots ;
+        public static $module_roots;
+
         /**
          * Initialize class.
          */
-        public static function init()
-        {
+        public static function init() {
             self::$module_roots = array(
                 'dir'  => plugin_dir_path( __FILE__ ),
                 'pdir' => plugin_dir_url( __FILE__ ),
@@ -112,7 +103,8 @@ if ( function_exists( __NAMESPACE__ . '\\ss_fs' ) ) {
             require_once $root . 'lib/classes/bootstrap.php';
             new BootStrap();
         }
-    
+
     }
+
     Main::init();
 }

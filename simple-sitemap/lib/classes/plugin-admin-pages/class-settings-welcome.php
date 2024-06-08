@@ -101,26 +101,14 @@ class Settings_Welcome {
 	 * Add menu page.
 	 */
 	public function add_options_page() {
-		$parent_slug = null;
-
-		if ( SITEMAP_FREEMIUS_NAVIGATION === 'tabs' ) {
-			// Only show submenu page when tabs enabled if welcome tab is active.
-			if ( isset( $_GET['page'] ) && $_GET['page'] === $this->welcome_slug ) {
-				$parent_slug = $this->custom_plugin_data->parent_slug;
-			}
-		} else {
-			// Always use this if navigation is set to 'menu'.
-			$parent_slug = $this->custom_plugin_data->parent_slug;
-		}
-
 		if ( 'top' === $this->custom_plugin_data->menu_type || 'top-cpt' === $this->custom_plugin_data->menu_type ) {
 			$label = 'About';
 		} elseif ( 'sub' === $this->custom_plugin_data->menu_type ) {
 			$label = '<span class="fs-submenu-item fs-sub wpgo-plugins">About</span>';
 		}
 
-		$hook = add_submenu_page(
-			'simple-sitemap-menu', // $parent_slug,
+		add_submenu_page(
+			'simple-sitemap-menu',
 			__( 'Welcome to ' . $this->custom_plugin_data->main_menu_label, 'simple-sitemap' ),
 			$label,
 			'manage_options',
@@ -135,14 +123,12 @@ class Settings_Welcome {
 	 */
 	public function render_sub_menu_form() {
 
-		$tabs_list_html        = $this->utility->build_settings_tabs_html( $this->plugin_data );
 		$tab_classes           = SITEMAP_FREEMIUS_NAVIGATION === 'tabs' ? ' fs-section fs-full-size-wrapper' : ' no-tabs';
 		$is_premium            = $this->custom_plugin_data->is_premium;
-				$plugin_lbl    = $this->custom_plugin_data->main_menu_label;
-				$more_features = $is_premium ? 'View the full set of <a href="https://wpgoplugins.com/document/simple-sitemap-pro-documentation/" target="_blank">shortcode attributes</a> available.' : 'See the <a href="' . $this->custom_plugin_data->main_settings_url . '">main settings</a> page for a list of shortcode attributes available in the free version (expand the <strong>Shortcode Attributes & Default Values</strong> section).';
+		$plugin_lbl    = $this->custom_plugin_data->main_menu_label;
+		$more_features = $is_premium ? 'View the full set of <a href="https://wpgoplugins.com/document/simple-sitemap-pro-documentation/" target="_blank">shortcode attributes</a> available.' : 'See the <a href="' . $this->custom_plugin_data->main_settings_url . '">main settings</a> page for a list of shortcode attributes available in the free version (expand the <strong>Shortcode Attributes & Default Values</strong> section).';
 		?>
 				<div class="wrap <?php echo esc_attr( $tab_classes ); ?> about-wrap">
-					<?php echo wp_kses_post( $tabs_list_html ); ?>
 					<div class="wpgo-settings-inner about-con">
 						<div class="header">
 							<div class="header-img">

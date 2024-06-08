@@ -19,12 +19,23 @@ msgstr ""
 msgid "Featured Image Settings"
 msgstr ""
 
-#: lib/src/blocks/simple-sitemap/index.js:215
-msgid "General Settings"
-msgstr ""
-
+#: lib/src/blocks/simple-sitemap-group/index.js:29
 #: lib/src/blocks/simple-sitemap/index.js:28
 msgid "Sitemap"
+msgstr ""
+
+#: lib/src/blocks/simple-sitemap-group/index.js:30
+msgid "Group"
+msgstr ""
+
+#: lib/src/blocks/simple-sitemap-group/index.js:31
+#: lib/src/blocks/simple-sitemap/index.js:30
+msgid "HTML Sitemap"
+msgstr ""
+
+#: lib/src/blocks/simple-sitemap-group/index.js:87
+#: lib/src/blocks/simple-sitemap/index.js:215
+msgid "General Settings"
 msgstr ""
 
 #: lib/src/blocks/simple-sitemap/index.js:285
@@ -33,10 +44,6 @@ msgstr ""
 
 #: lib/src/blocks/simple-sitemap/index.js:29
 msgid "Single"
-msgstr ""
-
-#: lib/src/blocks/simple-sitemap/index.js:30
-msgid "HTML Sitemap"
 msgstr ""
 
 #: lib/src/blocks/simple-sitemap/index.js:302

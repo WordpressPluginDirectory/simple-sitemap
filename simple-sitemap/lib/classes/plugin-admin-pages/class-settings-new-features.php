@@ -103,18 +103,6 @@ class Settings_New_Features {
 	 */
 	public function add_options_page() {
 
-		$parent_slug = null;
-
-		if ( SITEMAP_FREEMIUS_NAVIGATION === 'tabs' ) {
-			// Only show submenu page when tabs enabled if new features tab is active.
-			if ( isset( $_GET['page'] ) && $_GET['page'] === $this->new_features_slug ) {
-				$parent_slug = $this->custom_plugin_data->parent_slug;
-			}
-		} else {
-			// Always use this if navigation is set to 'menu'.
-			$parent_slug = $this->custom_plugin_data->parent_slug;
-		}
-
 		// @todo calc this in constants.php just once and pass it in.
 		$opt_pfx             = $this->custom_plugin_data->db_option_prefix;
 		$new_features_number = \WPGO_Plugins\Plugin_Framework\Upgrade_FW::calc_new_features( $opt_pfx, $this->new_features_arr, $this->plugin_data );
@@ -128,7 +116,7 @@ class Settings_New_Features {
 		}
 
 		$hook = add_submenu_page(
-			'simple-sitemap-menu', // $parent_slug,
+			'simple-sitemap-menu',
 			'New Features',
 			$label,
 			'manage_options',
@@ -142,13 +130,11 @@ class Settings_New_Features {
 	 */
 	public function render_sub_menu_form() {
 
-		$tabs_list_html = $this->utility->build_settings_tabs_html( $this->plugin_data );
 		$tab_classes    = SITEMAP_FREEMIUS_NAVIGATION === 'tabs' ? ' fs-section fs-full-size-wrapper' : ' no-tabs';
 		$is_premium     = $this->custom_plugin_data->is_premium;
 		$opt_pfx        = $this->custom_plugin_data->db_option_prefix;
 		?>
 		<div class="wrap welcome new-features<?php echo esc_attr( $tab_classes ); ?>">
-		<?php echo wp_kses_post( $tabs_list_html ); ?>
 		<div class="wpgo-settings-inner">
 			<h1 class="heading"><?php esc_html_e( 'Simple Sitemap New Features & Updates!', 'simple-sitemap' ); ?></h1>
 			<p style="font-size:18px;">Features added in recent releases will appear here, ordered by the date first implemented. If you'd like to be notified of all plugin changes as soon as they're available then please <a href="https://us4.list-manage.com/subscribe?u=7ac9d1df68c71b93569502c5c&id=e4929d34d7" target="_blank">signup to our newsletter</a>. And if you have any suggestions for new features you'd like to see added to the plugin then why not <a href="<?php echo esc_url( $this->custom_plugin_data->contact_us_url ); ?>">drop us a line</a>? We always like to hear feedback from our users. Tell us what's on your mind!</p>

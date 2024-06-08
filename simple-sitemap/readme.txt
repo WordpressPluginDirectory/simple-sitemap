@@ -3,8 +3,8 @@ Contributors: dgwyer, wpgoplugins
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FBAG4ZHA4TTUC
 Tags: seo sitemap, html, sitemap, html sitemap, responsive sitemap
 Requires at least: 6.0
-Tested up to: 6.4
-Stable tag: 3.5.12
+Tested up to: 6.5
+Stable tag: 3.5.14
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -158,6 +158,12 @@ No. This plugin is for generating an HTML sitemap only.
 12. Show sitemap in a horizontal list separated by any character(s). [Pro]
 
 == Changelog ==
+= 3.5.14 - Jun 7, 2024 =
+
+* [update] Updated plugin to be compatible with WordPress 6.5.
+* [update] Updated Freemius SDK to 2.7.2.
+* [fix] Implemented reported security fixes.
+* [fix] Fixed sitemap group block/shortcode.
 
 = 3.5.12 - Feb 19, 2024 =
 
