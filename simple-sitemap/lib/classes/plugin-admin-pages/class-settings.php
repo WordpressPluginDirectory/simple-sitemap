@@ -9,7 +9,7 @@ class Settings {
     /**
      * Common root paths/directories.
      *
-     * @var $module_roots
+     * @var array<string, string>
      */
     protected $module_roots;
 
@@ -23,7 +23,7 @@ class Settings {
     /**
      * Custom plugin data.
      *
-     * @var array
+     * @var Constants
      */
     protected $custom_plugin_data;
 
@@ -44,19 +44,12 @@ class Settings {
     /**
      * Utility class instance.
      *
-     * @var array
+     * @var Utility
      */
     protected $utility;
 
     /**
-     * Settings framework instance.
-     *
-     * @var array
-     */
-    protected $settings_fw;
-
-    /**
-     * New features array from the plugin framework.
+     * New features array.
      *
      * @var array
      */
@@ -91,53 +84,44 @@ class Settings {
     protected $welcome_slug;
 
     /**
+     * Privacy-conscious support report service.
+     *
+     * @var Support_Diagnostics
+     */
+    protected $support_diagnostics;
+
+    /**
      * Main class constructor.
      *
      * @param array $module_roots Root plugin path/dir.
      * @param array $plugin_data Plugin data.
-     * @param array $custom_plugin_data Custom plugin data.
-     * @param array $utility Utility data.
-     * @param array $settings_fw Plugin framework settings.
-     * @param array $new_features_arr Plugin framework new features.
+     * @param Constants $custom_plugin_data Custom plugin data.
+     * @param Utility   $utility Utility data.
+     * @param array               $new_features_arr Plugin new features.
+     * @param Support_Diagnostics $support_diagnostics Support report service.
      */
     public function __construct(
         $module_roots,
         $plugin_data,
         $custom_plugin_data,
         $utility,
-        $settings_fw,
-        $new_features_arr
+        $new_features_arr,
+        $support_diagnostics
     ) {
         $this->module_roots = $module_roots;
         $this->custom_plugin_data = $custom_plugin_data;
         $this->hook_prefix = $this->custom_plugin_data->plugin_settings_prefix;
         $this->freemius_upgrade_url = $this->custom_plugin_data->freemius_upgrade_url;
         $this->utility = $utility;
-        $this->settings_fw = $settings_fw;
         $this->plugin_data = $plugin_data;
         $this->new_features_arr = $new_features_arr;
+        $this->support_diagnostics = $support_diagnostics;
         $this->pro_attribute = ( $this->custom_plugin_data->is_premium ? '' : '<span class="pro" title="Upgrade now for immediate access to this feature"><a href="' . $this->freemius_upgrade_url . '">PRO</a></span>' );
         $this->settings_slug = $this->custom_plugin_data->settings_pages['settings']['slug'];
         $this->new_features_slug = $this->custom_plugin_data->settings_pages['new-features']['slug'];
         $this->welcome_slug = $this->custom_plugin_data->settings_pages['welcome']['slug'];
         add_action( 'admin_init', array(&$this, 'register_plugin_settings') );
         add_action( 'admin_menu', array(&$this, 'add_options_page') );
-        add_filter( 'simple_sitemap_defaults', array(&$this, 'add_defaults') );
-        add_filter( 'custom_menu_order', array(&$this, 'filter_menu_order') );
-        // enable custom menu ordering.
-        add_action( 'admin_notices', function () {
-            // Check to see if user clicked on the reset options button and verify nonce.
-            if ( isset( $_POST['reset_options'] ) && isset( $_POST['simple_sitemap_reset_nonce'] ) && wp_verify_nonce( $_POST['simple_sitemap_reset_nonce'], 'simple_sitemap_reset_action' ) ) {
-                // Display update notice here.
-                ?>
-					<div class="notice notice-success is-dismissible">
-						<p>Plugin settings reset to defaults.</p>
-					</div>
-					<?php 
-                // Reset plugin defaults.
-                update_option( 'simple_sitemap_options', self::get_default_plugin_options() );
-            }
-        } );
     }
 
     /**
@@ -154,7 +138,7 @@ class Settings {
     public function add_options_page() {
         // @todo calc this in constants.php just once and pass it in.
         $opt_pfx = $this->custom_plugin_data->db_option_prefix;
-        $new_features_number = \WPGO_Plugins\Plugin_Framework\Upgrade_FW::calc_new_features( $opt_pfx, $this->new_features_arr, $this->plugin_data );
+        $new_features_number = Upgrade::calc_new_features( $opt_pfx, $this->new_features_arr, $this->plugin_data );
         $title = ( 0 === $new_features_number ? __( 'Simple Sitemap', 'simple-sitemap' ) : 'Sitemap <span class="update-plugins count-' . $new_features_number . '"><span class="plugin-count">' . $new_features_number . '</span></span>' );
         add_menu_page(
             __( 'Simple Sitemap Settings Page', 'simple-sitemap' ),
@@ -176,20 +160,6 @@ class Settings {
     }
 
     /**
-     * Define default option settings.
-     *
-     * @param array $defaults Current plugin defaults.
-     * @return array $defaults Updated plugin defaults.
-     */
-    public function add_defaults( $defaults ) {
-        $defaults['txtar_sitemap_script'] = '';
-        $defaults['chk_parent_page_link'] = '0';
-        $defaults['txt_exclude_parent_pages'] = '';
-        $defaults['default_on_checkboxes']['chk_parent_page_link'] = '0';
-        return $defaults;
-    }
-
-    /**
      * Sanitize plugin options.
      *
      * @param array $input Current input content.
@@ -197,8 +167,11 @@ class Settings {
      */
     public function sanitize_plugin_options( $input ) {
         // Strip html from textboxes.
-        $input['txtar_sitemap_script'] = wp_filter_nohtml_kses( $input['txtar_sitemap_script'] );
-        $input['txt_exclude_parent_pages'] = wp_filter_nohtml_kses( $input['txt_exclude_parent_pages'] );
+        $input['txtar_sitemap_script'] = wp_filter_nohtml_kses( ( isset( $input['txtar_sitemap_script'] ) ? $input['txtar_sitemap_script'] : '' ) );
+        $input['txt_exclude_parent_pages'] = wp_filter_nohtml_kses( ( isset( $input['txt_exclude_parent_pages'] ) ? $input['txt_exclude_parent_pages'] : '' ) );
+        $input['sitemap_spacing_preset'] = Sitemap_Styles::sanitize_preset( ( isset( $input['sitemap_spacing_preset'] ) ? $input['sitemap_spacing_preset'] : 'inherit' ) );
+        $input['sitemap_item_spacing'] = Sitemap_Styles::sanitize_spacing( ( isset( $input['sitemap_item_spacing'] ) ? $input['sitemap_item_spacing'] : '' ) );
+        $input['sitemap_nested_spacing'] = Sitemap_Styles::sanitize_spacing( ( isset( $input['sitemap_nested_spacing'] ) ? $input['sitemap_nested_spacing'] : '' ) );
         // Sanitize plugin options via this filter hook. Allows you to sanitize options via another class.
         // return Hooks::wpgo_sanitize_plugin_options( $input );
         return $input;
@@ -210,7 +183,13 @@ class Settings {
     public function render() {
         $freemius_upgrade_url = admin_url() . 'admin.php?page=simple-sitemap-menu-pricing';
         $pro_attribute = '';
-        $pro_attribute = '&nbsp;<span class="pro" title="Click to get immediate access to this feature"><a href="' . $freemius_upgrade_url . '">PRO</a></span>';
+        $is_premium = ss_fs()->can_use_premium_code__premium_only();
+        $support_url = ( $is_premium ? admin_url( 'admin.php?page=simple-sitemap-menu-contact' ) : 'https://wordpress.org/support/plugin/simple-sitemap/' );
+        $support_label = ( $is_premium ? __( 'Contact Pro support', 'simple-sitemap' ) : __( 'Visit the Free support forum', 'simple-sitemap' ) );
+        $support_description = ( $is_premium ? __( 'Get licensed support or request a feature through the private support channel.', 'simple-sitemap' ) : __( 'Ask a usage question or report a Free-edition issue in the public WordPress.org forum.', 'simple-sitemap' ) );
+        if ( !$is_premium ) {
+            $pro_attribute = '&nbsp;<span class="pro" title="Click to get immediate access to this feature"><a href="' . $freemius_upgrade_url . '">PRO</a></span>';
+        }
         ?>
 		<div class="wrap welcome main no-tabs">
 
@@ -233,8 +212,12 @@ class Settings {
 						<a class="plugin-btn" href="<?php 
         echo esc_url( $this->custom_plugin_data->welcome_url );
         ?>#getting-started">Start Here<span style="width:15px;height:15px;" class="dashicons dashicons-arrow-right-alt2"></span></a>
-						<a style="background:#f5a356;border:2px #d9914e solid;" class="plugin-btn" href="https://demo.wpgothemes.com/flexr/simple-sitemap-pro-demo/" target="_blank">Live Demo</a></span>
-						<a style="background:#933c60;border:2px #6d314a solid;" class="plugin-btn" href="https://wpgoplugins.com/document/simple-sitemap-pro-documentation/" target="_blank">Plugin Docs</a>
+						<a style="background:#f5a356;border:2px #d9914e solid;" class="plugin-btn" href="<?php 
+        echo esc_url( Product_Links::tracked_url( 'https://demo.wpgoplugins.com/simple-sitemap/', 'settings-live-demo' ) );
+        ?>" target="_blank" rel="noopener noreferrer">Live Demo</a></span>
+						<a style="background:#933c60;border:2px #6d314a solid;" class="plugin-btn" href="<?php 
+        echo esc_url( Product_Links::tracked_url( 'https://wpgoplugins.com/document/simple-sitemap-pro-documentation/', 'settings-documentation' ) );
+        ?>" target="_blank" rel="noopener noreferrer">Plugin Docs</a>
 					</div>
 				</div>
 
@@ -242,7 +225,9 @@ class Settings {
 					<p class="description-txt">
 						To see what's new at a glance and how to use the plugin we recommend visiting the <a href="<?php 
         echo esc_url( $this->custom_plugin_data->welcome_url );
-        ?>">About</a> plugin page. Or, why not take a look at the Simple Sitemap <a href="https://demo.wpgothemes.com/flexr/simple-sitemap-pro-demo/" target="_blank">Live Demo</a> to see plenty of sitemap examples in action.
+        ?>">Home</a> plugin page. Or, why not take a look at the Simple Sitemap <a href="<?php 
+        echo esc_url( Product_Links::tracked_url( 'https://demo.wpgoplugins.com/simple-sitemap/', 'settings-description-demo' ) );
+        ?>" target="_blank" rel="noopener noreferrer">Live Demo</a> to see plenty of sitemap examples in action.
 					</p>
 				</div>
 
@@ -253,20 +238,47 @@ class Settings {
 			<p>Expand the section directly below to see all editor blocks included with the Simple Sitemap plugin.</p>
 
 			<div class="wpgo-expand-box" style="margin-top:20px;">
-				<h4 style="margin-top:5px;display:inline-block;margin-bottom:10px;">Available Blocks</h4><button id="blocks-btn" class="button">Expand <span style="vertical-align:sub;width:16px;height:16px;font-size:16px;" class="dashicons dashicons-arrow-down-alt2"></span></button>
+				<h4 style="margin-top:5px;display:inline-block;margin-bottom:10px;">Available Blocks</h4><button type="button" id="blocks-btn" class="button" aria-controls="blocks-wrap" aria-expanded="false">Expand <span class="dashicons dashicons-arrow-down-alt2"></span></button>
 
 				<div style="padding-top:0;" id="blocks-wrap">
 
-					<p>I'm pleased to announce that Simple Sitemap plugin now includes support for <a href="https://wordpress.org/gutenberg/" target="_blank">blocks</a>! This means you can now easily add a sitemap visually directly inside the WordPress editor. No more swapping back and forth between the editor and front end to preview the sitemap.</p>
+					<p><?php 
+        esc_html_e( 'Simple Sitemap provides focused blocks for building and previewing visitor-friendly HTML sitemaps directly in the WordPress editor.', 'simple-sitemap' );
+        ?></p>
 
-					<p>There are two sitemap blocks available. One to insert a standard sitemap, and the other to display a list of posts grouped by taxonomy. These two blocks can be used as a direct replacement for the following shortcodes.</p>
+					<p><?php 
+        esc_html_e( 'The Free edition includes these blocks:', 'simple-sitemap' );
+        ?></p>
 
 					<ul>
-						<li><code>[simple-sitemap]</code></li>
-						<li><code>[simple-sitemap-group]</code></li>
+						<li><strong><?php 
+        esc_html_e( 'Simple Sitemap', 'simple-sitemap' );
+        ?></strong> — <?php 
+        esc_html_e( 'lists posts or pages from selected content types.', 'simple-sitemap' );
+        ?></li>
+						<li><strong><?php 
+        esc_html_e( 'Simple Sitemap Group', 'simple-sitemap' );
+        ?></strong> — <?php 
+        esc_html_e( 'groups entries by taxonomy term.', 'simple-sitemap' );
+        ?></li>
+						<li><strong><?php 
+        esc_html_e( 'Simple Sitemap: Child Pages', 'simple-sitemap' );
+        ?></strong> — <?php 
+        esc_html_e( 'displays a published page hierarchy below a selected parent.', 'simple-sitemap' );
+        ?></li>
 					</ul>
 
-					<p>All shortcode attributes are now supported inside the editor via a specially built user interface.</p>
+					<?php 
+        ?>
+						<p><?php 
+        esc_html_e( 'Pro adds dedicated Taxonomy Terms, Navigation Menu, Archive Links, and WooCommerce Product blocks, plus enhanced Child Pages and per-section controls.', 'simple-sitemap' );
+        ?></p>
+					<?php 
+        ?>
+
+					<p><?php 
+        esc_html_e( 'Existing shortcodes remain available for classic content and page-builder workflows.', 'simple-sitemap' );
+        ?></p>
 
 					<div style="margin-top:20px;"><img style="max-width:550px;" src="<?php 
         echo esc_url( $this->module_roots['pdir'] );
@@ -292,7 +304,7 @@ class Settings {
 			<p style="font-size:14px;">Expand the section directly below to see all Simple Sitemap shortcodes currently available, along with a full list of supported shortcode attributes.</p>
 
 			<div class="wpgo-expand-box">
-				<h4 style="margin-top:5px;display:inline-block;margin-bottom:10px;">Available Shortcodes & Supported Attributes</h4><button id="attributes-btn" class="button">Expand <span style="vertical-align:sub;width:16px;height:16px;font-size:16px;" class="dashicons dashicons-arrow-down-alt2"></span></button>
+				<h4 style="margin-top:5px;display:inline-block;margin-bottom:10px;">Available Shortcodes & Supported Attributes</h4><button type="button" id="attributes-btn" class="button" aria-controls="attributes-wrap" aria-expanded="false">Expand <span class="dashicons dashicons-arrow-down-alt2"></span></button>
 				<div id="attributes-wrap" style="padding-bottom:10px;">
 					<div style="padding-top:0;">
 						<p>Click on a shortcode below to view the full list of supported attributes, along with a description and the default value used if the shortcode attribute is omitted.</p>
@@ -300,29 +312,29 @@ class Settings {
 						<p><strong>Note:</strong> We now recommend using sitemap blocks instead of shortcodes where possible for a better user experience.</p>
 
 						<p style="margin:25px 0 0 0;"><code style="font-size:15px;"><a class="code-link" href="#simple-sitemap-shortcode">[simple-sitemap]</a></code> <?php 
-        printf( __( 'Displays a list of posts for one or more post types.', 'simple-sitemap' ) );
+        esc_html_e( 'Displays a list of posts for one or more post types.', 'simple-sitemap' );
         ?></p>
 
 						<p style="margin:15px 0 0 0;"><code style="font-size:15px;"><a class="code-link" href="#simple-sitemap-group-shortcode">[simple-sitemap-group]</a></code> <?php 
-        printf( __( 'Displays a list of posts grouped by category, OR tags.', 'simple-sitemap' ) );
+        esc_html_e( 'Displays a list of posts grouped by category, OR tags.', 'simple-sitemap' );
         ?></p>
 
 						<p style="margin:15px 0 0 0;"><code style="font-size:15px;"><a class="code-link" href="#simple-sitemap-tax-shortcode">[simple-sitemap-tax]</a></code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> <?php 
-        printf( __( 'Displays a list of taxonomy terms for any registered taxonomy (e.g. categories).', 'simple-sitemap' ) );
+        esc_html_e( 'Displays a list of taxonomy terms for any registered taxonomy (e.g. categories).', 'simple-sitemap' );
         ?></p>
 
 						<p style="margin:15px 0 0 0;"><code style="font-size:15px;"><a class="code-link" href="#simple-sitemap-menu-shortcode">[simple-sitemap-menu]</a></code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> <?php 
-        printf( __( 'Displays a sitemap based on a nav menu.', 'simple-sitemap' ) );
+        esc_html_e( 'Displays a sitemap based on a nav menu.', 'simple-sitemap' );
         ?></p>
 
 						<p style="margin:15px 0 30px 0;"><code style="font-size:15px;"><a class="code-link" href="#simple-sitemap-child-shortcode">[simple-sitemap-child]</a></code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> <?php 
-        printf( __( 'Displays a list of child pages for a specific parent page.', 'simple-sitemap' ) );
+        esc_html_e( 'Displays a list of child pages for a specific parent page.', 'simple-sitemap' );
         ?></p>
 
 						<?php 
@@ -344,12 +356,13 @@ class Settings {
 						<li><code>excerpt_tag="div"</code> - Tag used to wrap the post excerpt text.</li>
 						<li><code>container_tag="ul"</code> - List type tag, ordered, or unordered.</li>
 						<li><code>types="page"</code> - List posts or pages (or both) in the order entered. e.g. <code>types="post, page"</code></li>
-						<li><code>include=""</code><?php 
-        echo wp_kses_post( $pro_attribute );
-        ?> - Comma separated list of post IDs to include in the sitemap only. Other posts will be ignored.</li>
-						<li><code>exclude=""</code><?php 
-        echo wp_kses_post( $pro_attribute );
-        ?> - Comma separated list of post IDs to exclude from the sitemap.</li>
+						<li><code>include=""</code> - Comma separated list of post IDs to include in the sitemap only. Other posts will be ignored.</li>
+						<li><code>exclude=""</code> - Comma separated list of post IDs to exclude from the sitemap.</li>
+						<li><code>paginate="false"</code> - Set to "true" to use bounded, linked pagination rather than loading every item in one request. Add a unique <code>id</code> when a page contains multiple similar sitemaps.</li>
+						<li><code>page_size="50"</code> - Number of sitemap entries per page when pagination is enabled (1-200).</li>
+						<li><code>spacing_preset="inherit"</code> - Use the global sitemap spacing, or choose <code>compact</code>, <code>comfortable</code>, or <code>custom</code> for this shortcode.</li>
+						<li><code>item_spacing=""</code> - Custom vertical spacing around sitemap items. Used with <code>spacing_preset="custom"</code>.</li>
+						<li><code>nested_spacing=""</code> - Custom spacing before and after nested levels. Used with <code>spacing_preset="custom"</code>.</li>
 						<li><code>image="false"</code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> - Optionally show the post featured image (if defined) next to each sitemap item.</li>
@@ -421,6 +434,11 @@ class Settings {
 						<li><code>page_depth="0"</code> - For the 'page' post type allow the indentation depth to be specified.</li>
 						<li><code>container_tag="ul"</code> - List type tag, ordered, or unordered.</li>
 						<li><code>num_terms="0"</code> - Limit the number of taxonomy terms displayed.</li>
+						<li><code>paginate="false"</code> - Set to "true" to give each taxonomy section its own bounded, linked pagination.</li>
+						<li><code>page_size="50"</code> - Number of entries per taxonomy-section page when pagination is enabled (1-200).</li>
+						<li><code>spacing_preset="inherit"</code> - Use the global sitemap spacing, or choose <code>compact</code>, <code>comfortable</code>, or <code>custom</code> for this shortcode.</li>
+						<li><code>item_spacing=""</code> - Custom vertical spacing around sitemap items.</li>
+						<li><code>nested_spacing=""</code> - Custom spacing before and after nested levels.</li>
 						<li><code>type="post"</code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> - List posts grouped by taxonomy from ANY post type.</li>
@@ -432,7 +450,7 @@ class Settings {
         ?> - List taxonomy term labels in ascending, or descending order.</li>
 						<li><code>separator="false"</code><?php 
         echo wp_kses_post( $pro_attribute );
-        ?> <em>(coming soon)</em> - Optionally render separator lines between sitemap items.</li>
+        ?> - Optionally render separator lines between sitemap items.</li>
 						<li><code>image="false"</code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> - Optionally show the post featured image (if defined) next to each sitemap item.</li>
@@ -472,12 +490,6 @@ class Settings {
 						<li><code>sitemap_container_margin=""</code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> - CSS <code>margin</code> for the sitemap container.</li>
-						<li><code>exclude=""</code><?php 
-        echo wp_kses_post( $pro_attribute );
-        ?> <em>(coming soon)</em> - Comma separated list of post IDs to exclude from the sitemap.</li>
-						<li><code>include=""</code><?php 
-        echo wp_kses_post( $pro_attribute );
-        ?> <em>(coming soon)</em> - Comma separated list of post IDs to include in the sitemap.</li>
 					</ul>
 
 					<p id="simple-sitemap-tax-shortcode" style="margin:35px 0 20px 0;"><code style="font-size:15px;">[simple-sitemap-tax ... ]</code></p>
@@ -516,6 +528,15 @@ class Settings {
 						<li><code>hide_empty="0"</code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> - Hide empty taxonomies (accepts '0' or '1').</li>
+						<li><code>spacing_preset="inherit"</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Use the global sitemap spacing, or choose a per-shortcode preset.</li>
+						<li><code>item_spacing=""</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Custom vertical spacing around sitemap items.</li>
+						<li><code>nested_spacing=""</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Custom spacing before and after nested levels.</li>
 					</ul>
 
 					<p id="simple-sitemap-menu-shortcode" style="margin:35px 0 20px 0;"><code style="font-size:15px;">[simple-sitemap-menu ... ]</code></p>
@@ -548,6 +569,15 @@ class Settings {
 						<li><code>include_menu_ids=""</code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> - Comma separated list of menu IDs to include in the sitemap.</li>
+						<li><code>spacing_preset="inherit"</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Use the global sitemap spacing, or choose a per-shortcode preset.</li>
+						<li><code>item_spacing=""</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Custom vertical spacing around sitemap items.</li>
+						<li><code>nested_spacing=""</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Custom spacing before and after nested levels.</li>
 					</ul>
 
 					<p id="simple-sitemap-child-shortcode" style="margin:35px 0 20px 0;"><code style="font-size:15px;">[simple-sitemap-child ... ]</code></p>
@@ -569,6 +599,24 @@ class Settings {
 						<li><code>page_excerpt_length="25"</code><?php 
         echo wp_kses_post( $pro_attribute );
         ?> - Trim page excerpt length to specific number of words.</li>
+						<li><code>separator="false"</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Add a subtle separator between child items.</li>
+						<li><code>image="false"</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Show compact featured-image thumbnails beside child items.</li>
+						<li><code>image_size="24"</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Square thumbnail size in pixels. Values from 16 to 32 pixels work well for compact child lists.</li>
+						<li><code>spacing_preset="inherit"</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Use the global sitemap spacing, or choose a per-shortcode preset.</li>
+						<li><code>item_spacing=""</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Custom vertical spacing around child items.</li>
+						<li><code>nested_spacing=""</code><?php 
+        echo wp_kses_post( $pro_attribute );
+        ?> - Custom spacing before and after nested child levels.</li>
 					</ul>
 				</div>
 			</div>
@@ -586,6 +634,67 @@ class Settings {
         $options = self::get_plugin_options();
         settings_fields( 'simple_sitemap_options_group' );
         ?>
+
+						<table class="form-table" role="presentation">
+							<tr>
+								<th scope="row"><label for="simple-sitemap-spacing-preset"><?php 
+        esc_html_e( 'Sitemap spacing', 'simple-sitemap' );
+        ?></label></th>
+								<td>
+									<select id="simple-sitemap-spacing-preset" name="simple_sitemap_options[sitemap_spacing_preset]">
+										<option value="inherit" <?php 
+        selected( $options['sitemap_spacing_preset'], 'inherit' );
+        ?>><?php 
+        esc_html_e( 'Current theme/plugin default', 'simple-sitemap' );
+        ?></option>
+										<option value="compact" <?php 
+        selected( $options['sitemap_spacing_preset'], 'compact' );
+        ?>><?php 
+        esc_html_e( 'Compact', 'simple-sitemap' );
+        ?></option>
+										<option value="comfortable" <?php 
+        selected( $options['sitemap_spacing_preset'], 'comfortable' );
+        ?>><?php 
+        esc_html_e( 'Comfortable', 'simple-sitemap' );
+        ?></option>
+										<option value="custom" <?php 
+        selected( $options['sitemap_spacing_preset'], 'custom' );
+        ?>><?php 
+        esc_html_e( 'Custom', 'simple-sitemap' );
+        ?></option>
+									</select>
+									<p class="description"><?php 
+        esc_html_e( 'Sets the default item and nested-list spacing for every Simple Sitemap block and shortcode. Existing output remains unchanged until you choose a preset or custom value.', 'simple-sitemap' );
+        ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="simple-sitemap-item-spacing"><?php 
+        esc_html_e( 'Custom item spacing', 'simple-sitemap' );
+        ?></label></th>
+								<td>
+									<input id="simple-sitemap-item-spacing" type="text" class="regular-text code" name="simple_sitemap_options[sitemap_item_spacing]" value="<?php 
+        echo esc_attr( $options['sitemap_item_spacing'] );
+        ?>" placeholder="0.2em">
+									<p class="description"><?php 
+        esc_html_e( 'Vertical space around each sitemap item. Used when Custom is selected; for example 0.2em or 4px.', 'simple-sitemap' );
+        ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="simple-sitemap-nested-spacing"><?php 
+        esc_html_e( 'Custom nested spacing', 'simple-sitemap' );
+        ?></label></th>
+								<td>
+									<input id="simple-sitemap-nested-spacing" type="text" class="regular-text code" name="simple_sitemap_options[sitemap_nested_spacing]" value="<?php 
+        echo esc_attr( $options['sitemap_nested_spacing'] );
+        ?>" placeholder="0.3em 0.5em">
+									<p class="description"><?php 
+        esc_html_e( 'Space before and after nested sitemap levels. Use one or two CSS length values.', 'simple-sitemap' );
+        ?></p>
+								</td>
+							</tr>
+						</table>
 
 						<div class="simple-sitemap-pro-tab">
 							<table class="form-table">
@@ -637,40 +746,125 @@ class Settings {
 					<!-- main form closing tag -->
 
 					<form action="<?php 
-        echo esc_attr( self::current_url() );
+        echo esc_url( admin_url( 'admin-post.php' ) );
         ?>" method="post" id="simple-sitemap-reset-form" style="display:inline;">
 						<?php 
         wp_nonce_field( 'simple_sitemap_reset_action', 'simple_sitemap_reset_nonce' );
         ?>
-						<div style="padding-bottom:10px;"><span id="simple-sitemap-reset"><a href="#">Reset plugin options</a><input type="hidden" name="reset_options" value="true"></span></div>
+						<input type="hidden" name="action" value="simple_sitemap_reset_options">
+						<div style="padding-bottom:10px;"><span id="simple-sitemap-reset"><a href="#">Reset plugin options</a></span></div>
 					</form>
 				</div>
 			</div>
 
 			<div style="margin-top:25px;"></div>
 
-			<h2 style="margin:35px 0 0 0;">Stay In Touch!</h2>
+			<?php 
+        $this->support_diagnostics->render();
+        ?>
+
+			<div style="margin-top:25px;"></div>
+
+			<h2 style="margin:35px 0 0 0;"><?php 
+        esc_html_e( 'Help, updates, and more', 'simple-sitemap' );
+        ?></h2>
 
 			<table class="form-table">
 				<?php 
-        do_action( $this->hook_prefix . '_settings_row_section_1', 'https://www.paypal.com/donate?hosted_button_id=FBAG4ZHA4TTUC' );
-        ?>
-
+        if ( !$is_premium ) {
+            ?>
+					<tr>
+						<th scope="row"><?php 
+            esc_html_e( 'Support development', 'simple-sitemap' );
+            ?></th>
+						<td>
+							<p><?php 
+            esc_html_e( 'If Simple Sitemap saves you time, a donation helps fund continued maintenance and new features.', 'simple-sitemap' );
+            ?></p>
+							<a class="button button-secondary" href="<?php 
+            echo esc_url( 'https://www.paypal.com/donate?hosted_button_id=FBAG4ZHA4TTUC' );
+            ?>" target="_blank" rel="noopener noreferrer"><?php 
+            esc_html_e( 'Make a donation', 'simple-sitemap' );
+            ?></a>
+						</td>
+					</tr>
 				<?php 
-        echo wp_kses_post( $this->settings_fw->try_our_other_plugins( basename( $this->module_roots['dir'] ) ) );
+        }
         ?>
-
-				<?php 
-        echo wp_kses_post( $this->settings_fw->subscribe_to_newsletter( 'http://eepurl.com/bXZmmD' ) );
+				<tr>
+					<th scope="row"><?php 
+        esc_html_e( 'Product news', 'simple-sitemap' );
+        ?></th>
+					<td>
+						<p><?php 
+        esc_html_e( 'Get release news, practical WordPress tips, and occasional offers by email.', 'simple-sitemap' );
+        ?></p>
+						<a class="button button-secondary" href="<?php 
+        echo esc_url( 'https://eepurl.com/bXZmmD' );
+        ?>" target="_blank" rel="noopener noreferrer"><?php 
+        esc_html_e( 'Join the newsletter', 'simple-sitemap' );
+        ?></a>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php 
+        esc_html_e( 'Support and feature requests', 'simple-sitemap' );
+        ?></th>
+					<td>
+						<p><?php 
+        echo esc_html( $support_description );
+        ?></p>
+						<?php 
+        if ( $is_premium ) {
+            ?>
+							<a class="button button-secondary" href="<?php 
+            echo esc_url( $support_url );
+            ?>"><?php 
+            echo esc_html( $support_label );
+            ?></a>
+						<?php 
+        } else {
+            ?>
+							<a class="button button-secondary" href="<?php 
+            echo esc_url( $support_url );
+            ?>" target="_blank" rel="noopener noreferrer"><?php 
+            echo esc_html( $support_label );
+            ?></a>
+						<?php 
+        }
         ?>
-
-				<?php 
-        echo wp_kses_post( $this->settings_fw->keep_in_touch() );
-        ?>
-
-				<?php 
-        echo wp_kses_post( $this->settings_fw->report_issues( admin_url() . 'admin.php?page=simple-sitemap-menu-contact' ) );
-        ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php 
+        esc_html_e( 'Billing and renewals', 'simple-sitemap' );
+        ?></th>
+					<td>
+						<p><?php 
+        esc_html_e( 'Manage your license, billing, and renewals from your secure account. Deactivating a license does not cancel its subscription.', 'simple-sitemap' );
+        ?></p>
+						<a class="button button-secondary" href="<?php 
+        echo esc_url( ss_fs()->get_account_url() );
+        ?>"><?php 
+        esc_html_e( 'Manage account', 'simple-sitemap' );
+        ?></a>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php 
+        esc_html_e( 'More WPGO Plugins', 'simple-sitemap' );
+        ?></th>
+					<td>
+						<p><?php 
+        esc_html_e( 'Explore our other focused WordPress tools.', 'simple-sitemap' );
+        ?></p>
+							<a class="button button-secondary" href="<?php 
+        echo esc_url( Product_Links::tracked_url( 'https://wpgoplugins.com/plugins/', 'settings-browse-plugins' ) );
+        ?>" target="_blank" rel="noopener noreferrer"><?php 
+        esc_html_e( 'Browse plugins', 'simple-sitemap' );
+        ?></a>
+					</td>
+				</tr>
 			</table>
 			</div>
 		</div>
@@ -683,7 +877,10 @@ class Settings {
      * @return string Current URL.
      */
     public static function current_url() {
-        return (( isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http' )) . '://' . wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_unslash( $_SERVER['REQUEST_URI'] );
+        $protocol = ( isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http' );
+        $host = ( isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '' );
+        $uri = ( isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '' );
+        return $protocol . '://' . $host . $uri;
     }
 
     /**
@@ -692,11 +889,7 @@ class Settings {
      * @return array the plugin options defaults.
      */
     public static function get_default_plugin_options() {
-        $defaults = array();
-        // Setup an array to store list of checkboxes that have a checkbox default set to 1.
-        $defaults['default_on_checkboxes'] = array();
-        // Add plugin specific default settings via this filter hook.
-        return Hooks::simple_sitemap_defaults( $defaults );
+        return Settings_Repository::get_defaults();
     }
 
     /**
@@ -708,111 +901,7 @@ class Settings {
      * @return array the plugin options.
      */
     public static function get_plugin_options() {
-        $options = get_option( 'simple_sitemap_options' );
-        $defaults = self::get_default_plugin_options();
-        // Store the OFF checkboxes array.
-        $default_on_checkboxes_arr = $defaults['default_on_checkboxes'];
-        // Remove the OFF checkboxes array from the main defaults array.
-        unset($defaults['default_on_checkboxes']);
-        if ( is_array( $options ) ) {
-            // Merge OFF checkboxes into main options array to add entries for empty checkboxes.
-            $options = array_merge( $default_on_checkboxes_arr, $options );
-        }
-        return wp_parse_args( $options, $defaults );
-        // return wp_parse_args(
-        // get_option( 'simple_sitemap_options' ),
-        // self::get_default_plugin_options()
-        // );
-    }
-
-    /**
-     * Filters the order of menu.
-     *
-     * @param string $custom A custom request string.
-     * @return array $custom List of items in the menu.
-     *
-     * @todo Add this to the plugin framework.
-     */
-    public function filter_menu_order( $custom ) {
-        global $submenu;
-        $parent_slug = $this->custom_plugin_data->parent_slug;
-        $menu_type = $this->custom_plugin_data->menu_type;
-        $pricingpage_index = 0;
-        $parent_index = 0;
-        $subpage_index1 = 0;
-        $subpage_index2 = 0;
-        $wp_org_support_forum_index = 0;
-        // if global menu array is empty then don't try to re-index. This is typically empty when the Freemius
-        // opt-in is displayed.
-        if ( empty( $submenu[$parent_slug] ) ) {
-            return $custom;
-        }
-        // store menu indexes of settings pages.
-        foreach ( $submenu[$parent_slug] as $menu_index => $val ) {
-            $menu_slug = $val[2];
-            if ( $menu_slug === $this->settings_slug ) {
-                $parent_index = $menu_index;
-            }
-            if ( $menu_slug === $this->new_features_slug ) {
-                $subpage_index1 = $menu_index;
-            }
-            if ( $menu_slug === $this->welcome_slug ) {
-                $subpage_index2 = $menu_index;
-            }
-            if ( $menu_slug === $this->custom_plugin_data->plugin_cpt_slug . '-wp-support-forum' ) {
-                $wp_org_support_forum_index = $menu_index;
-            }
-            if ( $val[2] === $this->custom_plugin_data->freemius_slug . '-pricing' ) {
-                $pricingpage_index = $menu_index;
-            }
-            // in the case of a CPT being used as the parent menu the Freemius generated pages will use
-            // a different prefix to the normal one
-            // if ($this->custom_plugin_data->menu_type === 'top-cpt') {
-            // if ($menu_slug === $this->custom_plugin_data->plugin_cpt_slug . '-pricing') {
-            // $pricingpage_index = $menu_index;
-            // }
-            // } else {
-            // if ($menu_slug === $this->settings_slug . '-pricing') {
-            // $pricingpage_index = $menu_index;
-            // }
-            // } // .
-        }
-        // Only re-index new features page if menu type is 'sub'.
-        if ( 'sub' === $menu_type ) {
-            if ( SITEMAP_FREEMIUS_NAVIGATION === 'menu' ) {
-                // Find the next available index after the main settings page.
-                $tmp_parent_index1 = $parent_index;
-                while ( isset( $submenu[$parent_slug][$tmp_parent_index1] ) ) {
-                    $tmp_parent_index1++;
-                }
-                // Move new features page to next position after main settings page.
-                $submenu[$parent_slug][$tmp_parent_index1] = $submenu[$parent_slug][$subpage_index1];
-                unset($submenu[$parent_slug][$subpage_index1]);
-                ksort( $submenu[$parent_slug] );
-            }
-        }
-        if ( SITEMAP_FREEMIUS_NAVIGATION === 'menu' ) {
-            // Find the next available index after the pricing page unless tabs are active in which case get next.
-            // Available index after main settings page.
-            if ( SITEMAP_FREEMIUS_NAVIGATION === 'tabs' ) {
-                $tmp_parent_index2 = $parent_index;
-            } else {
-                $tmp_parent_index2 = $pricingpage_index;
-            }
-            // $pricingpage_index will be 0 when license has been activated
-            // @todo perhaps better to always make the about page last menu item rather than dependent on pricing page (if it exists).
-            if ( 0 === $pricingpage_index ) {
-                $tmp_parent_index2 = $wp_org_support_forum_index;
-            }
-            while ( isset( $submenu[$parent_slug][$tmp_parent_index2] ) ) {
-                $tmp_parent_index2++;
-            }
-            // Move welcome page to next position after pricing/support forum page.
-            $submenu[$parent_slug][$tmp_parent_index2] = $submenu[$parent_slug][$subpage_index2];
-            unset($submenu[$parent_slug][$subpage_index2]);
-            ksort( $submenu[$parent_slug] );
-        }
-        return $custom;
+        return Settings_Repository::get_options();
     }
 
 }

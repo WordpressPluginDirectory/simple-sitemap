@@ -10,7 +10,7 @@ class Localize {
 	/**
 	 * Common root paths/directories.
 	 *
-	 * @var $module_roots
+	 * @var array<string, string>
 	 */
 	protected $module_roots;
 
@@ -23,7 +23,7 @@ class Localize {
 
 		$this->module_roots = $module_roots;
 
-		add_action( 'plugins_loaded', array( &$this, 'localize_plugin' ) );
+		add_action( 'init', array( &$this, 'localize_plugin' ) );
 	}
 
 	/**
@@ -33,5 +33,4 @@ class Localize {
 
 		load_plugin_textdomain( 'simple-sitemap', false, basename( dirname( $this->module_roots['file'] ) ) . '/languages' );
 	}
-
 } /* End class definition */

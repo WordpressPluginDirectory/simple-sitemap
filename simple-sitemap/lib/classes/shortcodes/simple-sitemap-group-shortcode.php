@@ -15,14 +15,14 @@ class Simple_Sitemap_Group_Shortcode {
 	/**
 	 * Store static class instance.
 	 *
-	 * @var $instance
+	 * @var self|null
 	 */
 	protected static $instance;
 
 	/**
 	 * Common root paths/directories.
 	 *
-	 * @var $module_roots
+	 * @var array<string, string>
 	 */
 	protected $module_roots;
 
@@ -43,7 +43,7 @@ class Simple_Sitemap_Group_Shortcode {
 	 * Create plugin instance.
 	 *
 	 * @param array $module_roots Root plugin path/dir.
-	 * @return array $instance class instance.
+	 * @return self Class instance.
 	 */
 	public static function create_instance( $module_roots ) {
 		if ( ! self::$instance ) {
@@ -55,11 +55,11 @@ class Simple_Sitemap_Group_Shortcode {
 	/**
 	 * Get plugin instance.
 	 *
-	 * @return array $instance class instance.
+	 * @return self Class instance.
 	 */
 	public static function get_instance() {
 		if ( ! self::$instance ) {
-			die( 'Error: Class instance hasn\'t been created yet.' );
+			throw new \RuntimeException( 'Grouped Sitemap shortcode has not been initialized.' );
 		}
 		return self::$instance;
 	}
@@ -73,13 +73,13 @@ class Simple_Sitemap_Group_Shortcode {
 	public function render_block( $attributes ) {
 		// manually set this to true as we're rendering a block
 		$attributes['gutenberg_block'] = true;
-		return wp_kses_post( $this->render( $attributes ) );
+		return wp_kses( $this->render( $attributes ), self::output_allowed_html() );
 	}
 
 	/**
 	 * Render sitemap from an editor shortcode.
 	 *
-	 * @param array $attributes Shortcode attributes.
+	 * @param array|string $attributes Shortcode attributes.
 	 * @return string           Sitemap render.
 	 */
 	public function render_shortcode( $attributes ) {
@@ -87,9 +87,11 @@ class Simple_Sitemap_Group_Shortcode {
 		// For a sitemap shortcode set 'gutenberg_block' to false in case it has been set to true manually.
 		if ( ! is_array( $attributes ) ) {
 			$attributes = array();
+		} else {
+			$attributes = array_map( 'sanitize_text_field', wp_unslash( $attributes ) );
 		}
 		$attributes['gutenberg_block'] = false;
-		return wp_kses_post( $this->render( $attributes ) );
+		return wp_kses( $this->render( $attributes ), self::output_allowed_html() );
 	}
 
 	/**
@@ -107,21 +109,7 @@ class Simple_Sitemap_Group_Shortcode {
 
 			// Attributes come from the shortcode.
 			$args = shortcode_atts(
-				array(
-					'id'            => '',
-					'page_depth'    => 0,
-					'tax'           => 'category', // single taxonomy that must be associated with a post type.
-					'title_tag'     => '',
-					'show_excerpt'  => 'false',
-					'excerpt_tag'   => 'div',
-					'links'         => 'true',
-					'orderby'       => 'title',
-					'order'         => 'asc',
-					'post_type_tag' => 'h3',
-					'show_label'    => 'true',
-					'container_tag' => 'ul',
-					'num_terms'     => 0,
-				),
+				Attribute_Schema::group_shortcode_defaults(),
 				$attributes,
 				'simple-sitemap-group'
 			);
@@ -147,13 +135,17 @@ class Simple_Sitemap_Group_Shortcode {
 			$args = Shortcode_Utility::format_booleans( $args );
 		}
 
+		if ( Sitemap_Pagination::is_enabled( $args ) ) {
+			$args['_pagination_key'] = Sitemap_Pagination::create_instance_key( (string) $args['id'], $args );
+		}
+
 		// Format attributes as necessary.
 		if ( $args['id'] === '' ) {
 			$args['id'] = uniqid(); // Helps avoid conflicts if using multiple sitemaps on the same page. e.g. 5d026c6168954.
 		}
 
 		// Sanitize text.
-		$args['id'] = sanitize_text_field( $args['id'] );
+		$args['id'] = Utility::sanitize_identifier( $args['id'], uniqid() );
 
 		// Internal only?
 		$args['shortcode_type'] = 'group'; // undocumented.
@@ -166,7 +158,7 @@ class Simple_Sitemap_Group_Shortcode {
 
 		// Force 'ul' or 'ol' to be used as the container tag.
 		$allowed_container_tags = array( 'ul', 'ol' );
-		if ( ! in_array( $args['container_tag'], $allowed_container_tags ) ) {
+		if ( ! in_array( $args['container_tag'], $allowed_container_tags, true ) ) {
 			$args['container_tag'] = 'ul';
 		}
 
@@ -185,25 +177,28 @@ class Simple_Sitemap_Group_Shortcode {
 		// ** OUTPUT START **
 		// ******************
 
-		// Start output caching (so that existing content in the [simple-sitemap] post doesn't get shoved to the bottom of the post.
-		ob_start();
-
 		if ( $render_err ) {
 			return $render_err;
 		}
+
+		$sitemap = '';
 
 		// Output styles.
 		$container_css_id    = '#simple-sitemap-container-' . $args['id'];
 		$container_css_class = '.simple-sitemap-container-' . $args['id']; // Applies styles to group sitemap.
 		$sitemap_styles      = apply_filters( '_simple_sitemap_group_styles', '', $args, $container_css_id, $container_css_class );
 
-		echo '<style type="text/css">';
-		echo $sitemap_styles;
-		echo '</style>';
+		$sitemap .= '<style type="text/css">';
+		$sitemap .= wp_kses( $sitemap_styles, array() );
+		$sitemap .= '</style>';
 
 		$sitemap_unique_id = 'simple-sitemap-container-' . $args['id'];
-		$container_classes = 'simple-sitemap-container ' . $sitemap_unique_id . $render_class . $container_format_class;
-		echo '<div id="' . $sitemap_unique_id . '" class="' . esc_attr( $container_classes ) . '">';
+		$container_classes = 'simple-sitemap-container simple-sitemap-spacing-root ' . $sitemap_unique_id . $render_class . $container_format_class;
+		$container_classes = apply_filters( '_simple_sitemap_group_container_classes', $container_classes, $args );
+
+		$sitemap       .= '<div id="' . esc_attr( $sitemap_unique_id ) . '" class="' . esc_attr( $container_classes ) . '"' . Sitemap_Styles::style_attribute( $args ) . '>';
+		$before_content = apply_filters( '_simple_sitemap_group_before_content', '', $args, $sitemap_unique_id );
+		$sitemap       .= is_string( $before_content ) ? wp_kses( $before_content, self::before_content_allowed_html() ) : '';
 
 		// Set opening and closing title tag.
 		if ( ! empty( $args['title_tag'] ) ) {
@@ -217,12 +212,13 @@ class Simple_Sitemap_Group_Shortcode {
 		$post_type_label = Shortcode_Utility::get_post_type_label( $args, $post_type, '' );
 
 		$list_item_wrapper_class = 'simple-sitemap-wrap' . $render_class;
-		echo wp_kses_post( $post_type_label );
+
+		$sitemap .= wp_kses_post( $post_type_label );
 
 		$taxonomy_arr = get_object_taxonomies( $post_type );
 
 		// Sort via specified taxonomy.
-		if ( ! empty( $args['tax'] ) && in_array( $args['tax'], $taxonomy_arr ) ) {
+		if ( ! empty( $args['tax'] ) && in_array( $args['tax'], $taxonomy_arr, true ) ) {
 
 			$term_attr = array(
 				'orderby' => $term_orderby,
@@ -230,46 +226,107 @@ class Simple_Sitemap_Group_Shortcode {
 				'number'  => $num_terms,
 			);
 
-			$terms = get_terms( $args['tax'], $term_attr );
+			$term_attr['taxonomy'] = $args['tax'];
+			$terms                 = get_terms( $term_attr );
+			if ( is_wp_error( $terms ) ) {
+				$sitemap .= '<p class="no-posts">' . esc_html__( 'Unable to load sitemap terms.', 'simple-sitemap' ) . '</p>';
+
+				$terms = array();
+			}
+			$batched_queries = Grouped_Query::execute( $args, $post_type, $terms );
 			foreach ( $terms as $term ) {
 
 				if ( apply_filters( '_simple_sitemap_group_include_exclude_terms', false, strtolower( $term->slug ), $args ) ) {
 					continue;
 				}
 
-				echo '<div class="' . esc_attr( $list_item_wrapper_class ) . ' ' . esc_attr( strtolower( $term->slug ) ) . '">';
+				$sitemap .= '<div class="' . esc_attr( $list_item_wrapper_class ) . ' ' . esc_attr( strtolower( $term->slug ) ) . '">';
 
 				$args['tax_query'] = array(
 					array(
 						'taxonomy' => $args['tax'],
 						'field'    => 'slug',
-						'terms'    => $term,
+						'terms'    => $term->slug,
 					),
 				);
+				if ( Sitemap_Pagination::is_enabled( $args ) ) {
+					$args['_pagination_scope'] = 'term-' . $term->term_id;
+					$args['_pagination_label'] = $term->name;
+				}
 
 				$term_html = '<h3 class="term-tag">' . $term->name . '</h3>';
 				$term_html = apply_filters( '_simple_sitemap_group_tax_links', $term_html, $term->name, $term->slug, $args );
-				echo wp_kses_post( $term_html );
 
-				$query_args = Shortcode_Utility::get_query_args( $args, $post_type );
-				Shortcode_Utility::render_list_items( $args, $post_type, $query_args );
+				$sitemap .= wp_kses_post( $term_html );
+
+				if ( is_array( $batched_queries ) && isset( $batched_queries[ $term->slug ] ) ) {
+					$sitemap .= wp_kses_post( Shortcode_Utility::get_query_items_html( $args, $post_type, $batched_queries[ $term->slug ] ) );
+				} else {
+					$query_args = Sitemap_Query::build_args( $args, $post_type );
+					$sitemap   .= wp_kses_post( Shortcode_Utility::get_list_items_html( $args, $post_type, $query_args ) );
+				}
+				$sitemap .= '</div>';
 			}
 		} else {
-			echo 'No posts found.';
+			$sitemap .= 'No posts found.';
 		}
 
-		echo '</div>'; // .simple-sitemap-container
+		$sitemap .= '</div>'; // .simple-sitemap-container
 
-		// @todo check we still need this
-		echo '<br style="clear: both;">'; // Make sure content after the sitemap is rendered properly if taken out.
-
-		$sitemap = ob_get_contents();
-		ob_end_clean();
+		// Retained for front-end layout compatibility with existing themes.
+		$sitemap .= '<br style="clear: both;">';
 
 		// ****************
 		// ** OUTPUT END **
 		// ****************
 
 		return $sitemap;
+	}
+
+	/**
+	 * Allowed markup for progressively enhanced controls before sitemap content.
+	 *
+	 * @return array<string, array<string, bool>>
+	 */
+	private static function before_content_allowed_html() {
+		return array(
+			'div'    => array(
+				'class'  => true,
+				'hidden' => true,
+			),
+			'label'  => array( 'for' => true ),
+			'input'  => array(
+				'id'               => true,
+				'class'            => true,
+				'type'             => true,
+				'autocomplete'     => true,
+				'aria-controls'    => true,
+				'aria-describedby' => true,
+				'placeholder'      => true,
+				'data-no-results'  => true,
+			),
+			'button' => array(
+				'class'  => true,
+				'type'   => true,
+				'hidden' => true,
+			),
+			'p'      => array(
+				'id'        => true,
+				'class'     => true,
+				'aria-live' => true,
+			),
+		);
+	}
+
+	/**
+	 * Retain the established post markup plus the progressive search field.
+	 *
+	 * @return array<string, array<string, bool>>
+	 */
+	private static function output_allowed_html() {
+		$allowed          = wp_kses_allowed_html( 'post' );
+		$allowed['input'] = self::before_content_allowed_html()['input'];
+
+		return $allowed;
 	}
 }

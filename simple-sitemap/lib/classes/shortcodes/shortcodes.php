@@ -10,7 +10,7 @@ class Shortcodes {
 	/**
 	 * Common root paths/directories.
 	 *
-	 * @var $module_roots
+	 * @var array<string, string>
 	 */
 	protected $module_roots;
 
@@ -36,6 +36,11 @@ class Shortcodes {
 
 		$root = $this->module_roots['dir'];
 
+		require_once $root . 'shared/class-visibility-policy.php';
+		require_once $root . 'shared/class-sitemap-item-renderer.php';
+		require_once $root . 'shared/class-sitemap-pagination.php';
+		require_once $root . 'shared/class-sitemap-query.php';
+		require_once $root . 'shared/class-grouped-query.php';
 		require_once $root . 'shared/class-shortcodes-utility.php';
 		Shortcode_Utility::create_instance( $this->module_roots );
 
@@ -47,5 +52,4 @@ class Shortcodes {
 		require_once $root . 'lib/classes/shortcodes/simple-sitemap-group-shortcode.php';
 		Simple_Sitemap_Group_Shortcode::create_instance( $this->module_roots );
 	}
-
 } /* End class definition */

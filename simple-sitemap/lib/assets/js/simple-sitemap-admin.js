@@ -11,25 +11,44 @@ jQuery(document).ready(function ($) {
 	});
 
 	// setup event listeners for expandable sections
-	['blocks', 'shortcodes', 'attributes'].forEach(function (
-		section
-	) {
+	['blocks', 'attributes'].forEach(function (section) {
 		const btn = $('#' + section + '-btn');
 		const wrap = $('#' + section + '-wrap');
 
 		btn.on('click', function () {
-			const isHidden = wrap.is(':hidden');
-			wrap.slideToggle(300, function () {
-				if (isHidden) {
-					btn.html(
-						'Collapse <span style="vertical-align:sub;width:16px;height:16px;font-size:16px;" class="dashicons dashicons-arrow-up-alt2"></span>'
-					);
-				} else {
-					btn.html(
-						'Expand <span style="vertical-align:sub;width:16px;height:16px;font-size:16px;" class="dashicons dashicons-arrow-down-alt2"></span>'
-					);
-				}
-			});
+			const willExpand = btn.attr('aria-expanded') !== 'true';
+			btn.attr('aria-expanded', willExpand ? 'true' : 'false');
+			btn.html(
+				willExpand
+					? 'Collapse <span class="dashicons dashicons-arrow-up-alt2"></span>'
+					: 'Expand <span class="dashicons dashicons-arrow-down-alt2"></span>'
+			);
+			wrap.stop(true, true).slideToggle(300);
 		});
+	});
+
+	$('[data-simple-sitemap-copy]').on('click', function () {
+		const button = $(this);
+		const target = document.getElementById(
+			button.data('simple-sitemap-copy')
+		);
+		const status = button.siblings('.simple-sitemap-copy-status');
+		if (!target) {
+			return;
+		}
+
+		const copied = () => status.text(` ${button.data('copied-label')}`);
+		if (navigator.clipboard && window.isSecureContext) {
+			navigator.clipboard.writeText(target.value).then(copied, () => {
+				target.select();
+				document.execCommand('copy');
+				copied();
+			});
+			return;
+		}
+
+		target.select();
+		document.execCommand('copy');
+		copied();
 	});
 });

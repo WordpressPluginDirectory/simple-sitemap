@@ -10,14 +10,14 @@ class Settings_New_Features {
 	/**
 	 * Common root paths/directories.
 	 *
-	 * @var $module_roots
+	 * @var array<string, string>
 	 */
 	protected $module_roots;
 
 	/**
 	 * Custom plugin data.
 	 *
-	 * @var array
+	 * @var Constants
 	 */
 	protected $custom_plugin_data;
 
@@ -38,16 +38,9 @@ class Settings_New_Features {
 	/**
 	 * Utility data.
 	 *
-	 * @var array
+	 * @var Utility
 	 */
 	protected $utility;
-
-	/**
-	 * Plugin framework new features.
-	 *
-	 * @var array
-	 */
-	protected $new_features_fw;
 
 	/**
 	 * New plugin features.
@@ -76,17 +69,15 @@ class Settings_New_Features {
 	 * @param array $module_roots Root plugin path/dir.
 	 * @param array $new_features_arr New plugin features.
 	 * @param array $plugin_data Plugin data.
-	 * @param array $custom_plugin_data Custom plugin data.
-	 * @param array $utility Utility data.
-	 * @param array $new_features_fw Plugin framework new features.
+	 * @param Constants $custom_plugin_data Custom plugin data.
+	 * @param Utility   $utility Utility data.
 	 */
-	public function __construct( $module_roots, $new_features_arr, $plugin_data, $custom_plugin_data, $utility, $new_features_fw ) {
+	public function __construct( $module_roots, $new_features_arr, $plugin_data, $custom_plugin_data, $utility ) {
 		$this->module_roots                  = $module_roots;
 		$this->custom_plugin_data            = $custom_plugin_data;
 		$this->freemius_upgrade_url          = $this->custom_plugin_data->freemius_upgrade_url;
 		$this->freemius_discount_upgrade_url = $this->custom_plugin_data->freemius_discount_upgrade_url;
 		$this->utility                       = $utility;
-		$this->new_features_fw               = $new_features_fw;
 
 		// $this->pro_attribute = '<span class="pro" title="Shortcode attribute available in ' . $this->custom_plugin_data->main_menu_label . ' Pro"><a href="' . $this->freemius_upgrade_url . '">PRO</a></span>';
 		$this->new_features_arr = $new_features_arr;
@@ -105,10 +96,11 @@ class Settings_New_Features {
 
 		// @todo calc this in constants.php just once and pass it in.
 		$opt_pfx             = $this->custom_plugin_data->db_option_prefix;
-		$new_features_number = \WPGO_Plugins\Plugin_Framework\Upgrade_FW::calc_new_features( $opt_pfx, $this->new_features_arr, $this->plugin_data );
+		$new_features_number = Upgrade::calc_new_features( $opt_pfx, $this->new_features_arr, $this->plugin_data );
 
 		$title = 0 === $new_features_number ? __( 'New Features', 'simple-sitemap' ) : 'New Features <span class="update-plugins count-' . $new_features_number . '"><span class="plugin-count">' . $new_features_number . '</span></span>';
 
+		$label = $title;
 		if ( 'top' === $this->custom_plugin_data->menu_type || 'top-cpt' === $this->custom_plugin_data->menu_type ) {
 			$label = $title;
 		} elseif ( 'sub' === $this->custom_plugin_data->menu_type ) {
@@ -130,28 +122,95 @@ class Settings_New_Features {
 	 */
 	public function render_sub_menu_form() {
 
-		$tab_classes    = SITEMAP_FREEMIUS_NAVIGATION === 'tabs' ? ' fs-section fs-full-size-wrapper' : ' no-tabs';
-		$is_premium     = $this->custom_plugin_data->is_premium;
-		$opt_pfx        = $this->custom_plugin_data->db_option_prefix;
+		$tab_classes = SITEMAP_FREEMIUS_NAVIGATION === 'tabs' ? ' fs-section fs-full-size-wrapper' : ' no-tabs';
+		$is_premium  = $this->custom_plugin_data->is_premium;
+		$opt_pfx     = $this->custom_plugin_data->db_option_prefix;
 		?>
 		<div class="wrap welcome new-features<?php echo esc_attr( $tab_classes ); ?>">
 		<div class="wpgo-settings-inner">
-			<h1 class="heading"><?php esc_html_e( 'Simple Sitemap New Features & Updates!', 'simple-sitemap' ); ?></h1>
-			<p style="font-size:18px;">Features added in recent releases will appear here, ordered by the date first implemented. If you'd like to be notified of all plugin changes as soon as they're available then please <a href="https://us4.list-manage.com/subscribe?u=7ac9d1df68c71b93569502c5c&id=e4929d34d7" target="_blank">signup to our newsletter</a>. And if you have any suggestions for new features you'd like to see added to the plugin then why not <a href="<?php echo esc_url( $this->custom_plugin_data->contact_us_url ); ?>">drop us a line</a>? We always like to hear feedback from our users. Tell us what's on your mind!</p>
+			<h1 class="heading"><?php esc_html_e( 'What’s new in Simple Sitemap', 'simple-sitemap' ); ?></h1>
+			<p style="font-size:18px;"><?php esc_html_e( 'See the features and improvements added in recent releases. For the complete release history, open the changelog. If you have an idea or a problem to solve, send it through Contact Us.', 'simple-sitemap' ); ?></p>
 		<?php
-		echo wp_kses_post(
-			$this->new_features_fw->new_features_loop(
-				$this->new_features_arr,
-				$this->freemius_discount_upgrade_url,
-				$is_premium,
-				$this->plugin_data,
-				'lib'
-			)
-		);
+		echo wp_kses_post( $this->render_new_features( $is_premium ) );
 		?>
 		</div>
 	</div>
 		<?php
 	}
 
+	/**
+	 * Render recent feature cards.
+	 *
+	 * @param bool $is_premium Whether the premium edition is active.
+	 * @return string
+	 */
+	private function render_new_features( $is_premium ) {
+		ob_start();
+		?>
+		<ul class="wpgo-settings-grid-container">
+			<?php foreach ( $this->new_features_arr as $new_feature ) : ?>
+				<?php
+				if ( ! is_object( $new_feature ) || empty( $new_feature->title ) ) {
+					continue;
+				}
+
+				$type         = isset( $new_feature->type ) ? (string) $new_feature->type : '';
+				$ribbon_text  = array(
+					'fix'    => __( 'Fixed', 'simple-sitemap' ),
+					'new'    => __( 'New', 'simple-sitemap' ),
+					'update' => __( 'Updated', 'simple-sitemap' ),
+				)[ $type ] ?? '';
+				$license      = isset( $new_feature->license ) ? (string) $new_feature->license : 'free';
+				$is_pro       = 'pro' === $license;
+				$version      = isset( $new_feature->version ) ? (string) $new_feature->version : '';
+				$is_current   = $version === $this->plugin_data['Version'] || 'latest' === $version;
+				$learn_more   = isset( $new_feature->learn_more_url ) ? (string) $new_feature->learn_more_url : '';
+				$show_upgrade = $is_pro && ! $is_premium;
+				$banner       = isset( $new_feature->banner_url ) ? sanitize_file_name( $new_feature->banner_url ) : '';
+				?>
+				<li>
+					<div class="wpgo-settings-card">
+						<?php if ( $is_current && '' !== $ribbon_text ) : ?>
+							<div class="ribbon-wrapper"><div class="ribbon <?php echo esc_attr( $type ); ?>"><?php echo esc_html( $ribbon_text ); ?></div></div>
+						<?php endif; ?>
+						<div class="image-wrapper">
+							<?php if ( ! $is_premium ) : ?>
+								<div class="<?php echo $is_pro ? 'pro-only' : 'free-only'; ?>">
+									<?php if ( $is_pro ) : ?>
+										<a href="<?php echo esc_url( $this->freemius_discount_upgrade_url ); ?>"><?php esc_html_e( 'Pro', 'simple-sitemap' ); ?></a>
+									<?php else : ?>
+										<?php esc_html_e( 'Free', 'simple-sitemap' ); ?>
+									<?php endif; ?>
+								</div>
+							<?php endif; ?>
+							<?php if ( '' !== $banner ) : ?>
+								<img src="<?php echo esc_url( $this->module_roots['uri'] . '/lib/assets/images/new-features/' . $banner ); ?>" alt="">
+							<?php endif; ?>
+						</div>
+						<div class="details">
+							<?php /* translators: %s: plugin version number. */ ?>
+							<div><?php echo esc_html( sprintf( __( 'Version: %s', 'simple-sitemap' ), $version ) ); ?></div>
+							<div><?php echo esc_html( isset( $new_feature->date ) ? (string) $new_feature->date : '' ); ?></div>
+						</div>
+						<div class="card-content">
+							<h2><?php echo esc_html( (string) $new_feature->title ); ?></h2>
+							<?php echo wp_kses_post( isset( $new_feature->description ) ? (string) $new_feature->description : '' ); ?>
+						</div>
+						<?php if ( '' !== $learn_more || $show_upgrade ) : ?>
+							<div class="permalink">
+								<?php if ( '' !== $learn_more ) : ?>
+									<a class="button left" href="<?php echo esc_url( Product_Links::tracked_url( $learn_more, 'new-features-learn-more' ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Learn more', 'simple-sitemap' ); ?></a>
+								<?php endif; ?>
+								<?php if ( $show_upgrade ) : ?>
+									<a class="button right" href="<?php echo esc_url( $this->freemius_discount_upgrade_url ); ?>"><?php esc_html_e( 'Upgrade', 'simple-sitemap' ); ?></a>
+								<?php endif; ?>
+							</div>
+						<?php endif; ?>
+					</div>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<?php
+		return (string) ob_get_clean();
+	}
 } /* End class definition */

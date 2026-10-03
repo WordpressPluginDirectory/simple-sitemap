@@ -7,32 +7,21 @@ namespace WPGO_Plugins\Simple_Sitemap;
  *
  * Backslash needed here as 'Walker' class is outside of the 'WPGO_Plugins\Simple_Sitemap' namespace.
  */
-class WPGO_Walker_Page extends \Walker {
+class WPGO_Walker_Page extends \Walker_Page {
 
+	/**
+	 * Normalized sitemap arguments supplied by the shortcode renderer.
+	 *
+	 * @var array<string, mixed>
+	 */
 	public $ssp_args;
-
-	/**
-	 * @see Walker::$tree_type
-	 * @var string
-	 */
-	public $tree_type = 'page';
-
-	/**
-	 * @see Walker::$db_fields
-	 * @todo Decouple this.
-	 * @var array
-	 */
-	public $db_fields = array(
-		'parent' => 'post_parent',
-		'id'     => 'ID',
-	);
 
 	/**
 	 * @see Walker::start_lvl()
 	 *
 	 * @param string $output Passed by reference. Used to append additional content.
 	 * @param int    $depth  Depth of page. Used for padding.
-	 * @param array  $args
+	 * @param array  $args   Sitemap arguments.
 	 */
 	public function start_lvl( &$output, $depth = 0, $args = array() ) {
 		$indent  = str_repeat( "\t", $depth );
@@ -44,7 +33,7 @@ class WPGO_Walker_Page extends \Walker {
 	 *
 	 * @param string $output Passed by reference. Used to append additional content.
 	 * @param int    $depth  Depth of page. Used for padding.
-	 * @param array  $args
+	 * @param array  $args   Sitemap arguments.
 	 */
 	public function end_lvl( &$output, $depth = 0, $args = array() ) {
 		$indent  = str_repeat( "\t", $depth );
@@ -57,11 +46,13 @@ class WPGO_Walker_Page extends \Walker {
 	 * @param string $output       Passed by reference. Used to append additional content.
 	 * @param object $page         Page data object.
 	 * @param int    $depth        Depth of page. Used for padding.
-	 * @param array  $args
+	 * @param array  $args         Sitemap arguments.
+	 * @param int    $current_page Current page ID.
 	 */
 	public function start_el( &$output, $page, $depth = 0, $args = array(), $current_page = 0 ) {
 
-		$tmp = Settings::get_plugin_options();
+		$tmp              = isset( $args['_simple_sitemap_options'] ) && is_array( $args['_simple_sitemap_options'] ) ? $args['_simple_sitemap_options'] : Settings_Repository::get_options();
+		$parent_page_link = isset( $tmp['chk_parent_page_link'] ) ? (string) $tmp['chk_parent_page_link'] : '0';
 
 		$parent_page = false;
 
@@ -76,11 +67,11 @@ class WPGO_Walker_Page extends \Walker {
 		if ( isset( $args['pages_with_children'][ $page->ID ] ) ) {
 			$css_class[] = 'page_item_has_children';
 
-			if ( isset( $tmp['chk_parent_page_link'] ) && $tmp['chk_parent_page_link'] == '1' ) {
+			if ( '1' === $parent_page_link ) {
 				if ( ! empty( $tmp['txt_exclude_parent_pages'] ) ) {
 					// Process IDs.
-					$ids = explode( ',', $tmp['txt_exclude_parent_pages'] );
-					if ( in_array( $page->ID, $ids ) ) {
+					$ids = array_map( 'absint', explode( ',', $tmp['txt_exclude_parent_pages'] ) );
+					if ( in_array( (int) $page->ID, $ids, true ) ) {
 						$parent_page = true;
 					}
 				} else {
@@ -97,59 +88,32 @@ class WPGO_Walker_Page extends \Walker {
 
 		if ( '' === $page->post_title ) {
 			/* translators: %d: ID of a post */
-			$page->post_title = sprintf( __( '#%d (no title)' ), $page->ID );
+			$page->post_title = sprintf( __( '#%d (no title)', 'simple-sitemap' ), $page->ID );
 		}
 
 		$args['link_before'] = empty( $args['link_before'] ) ? '' : $args['link_before'];
 		$args['link_after']  = empty( $args['link_after'] ) ? '' : $args['link_after'];
 
-		// ******************
-		// NEW RENDER - START
-		// ******************
+		$image_html     = (string) apply_filters( '_simple_sitemap_image_html', '', $page->ID, $args );
+		$separator_html = (string) apply_filters( '_simple_sitemap_separator_html', '', $args );
+		$horizontal_sep = (string) apply_filters( '_simple_sitemap_horizontal_separator_v1', '', $args );
+		$excerpt_text   = (string) apply_filters( '_simple_sitemap_page_excerpt_text', strip_shortcodes( $page->post_content ), $args );
 
-		$image_html     = apply_filters( '_simple_sitemap_image_html', '', $page->ID, $args );
-		$separator_html = apply_filters( '_simple_sitemap_separator_html', '', $args );
-		$horizontal_sep = apply_filters( '_simple_sitemap_horizontal_separator_v1', '', $args );
-		$excerpt_text   = apply_filters( '_simple_sitemap_page_excerpt_text', strip_shortcodes( $page->post_content ), $args );
+		$title_text = Hooks::simple_sitemap_title_text( (string) $page->post_title, (int) $page->ID );
+		$permalink  = (string) get_permalink( $page->ID );
+		$title      = Shortcode_Utility::get_the_title( $title_text, $permalink, $args, $parent_page, $parent_page_link );
+		$title      = Hooks::simple_sitemap_title_link_text( $title, $page->ID );
+		$excerpt    = $args['show_excerpt'] == 'true' ? '<' . $args['excerpt_tag'] . ' class="excerpt">' . $excerpt_text . '</' . $args['excerpt_tag'] . '>' : '';
 
-		// $title_text = $page->post_title;
-		$title_text     = Hooks::simple_sitemap_title_text( $page->post_title, $page->ID );
-		$permalink      = get_permalink( $page->ID );
-		$title          = Shortcode_Utility::get_the_title( $title_text, $permalink, $args, $parent_page, $tmp['chk_parent_page_link'] );
-		$title          = Hooks::simple_sitemap_title_link_text( $title, $page->ID );
-		$excerpt        = $args['show_excerpt'] == 'true' ? '<' . $args['excerpt_tag'] . ' class="excerpt">' . $excerpt_text . '</' . $args['excerpt_tag'] . '>' : '';
-
-		// render list item
-		// @todo add this to a template (static method?) so we can reuse it in this and other classes?
-		$output .= $indent;
-		$output .= '<li class="sitemap-item ' . $css_classes . '">';
-		$output .= $image_html;
-		$output .= $title;
-		$output .= $excerpt;
-		$output .= $separator_html;
-		$output .= $horizontal_sep;
-
-		// ****************
-		// NEW RENDER - END
-		// ****************
-
-		// ******************
-		// OLD RENDER - START
-		// ******************
-
-		/*
-		$output .= $indent . sprintf(
-			'<li class="%s"><a href="%s">%s%s%s</a>',
-			$css_classes,
-			get_permalink( $page->ID ),
-			$args['link_before'],
-			apply_filters( 'the_title', $page->post_title, $page->ID ),
-			$args['link_after']
-		);*/
-
-		// ******************
-		// OLD RENDER - END
-		// ******************
+		$output .= Sitemap_Item_Renderer::open_item(
+			$title,
+			$excerpt,
+			$image_html,
+			$separator_html,
+			$horizontal_sep,
+			'sitemap-item ' . $css_classes,
+			$indent
+		);
 
 		if ( ! empty( $args['show_date'] ) ) {
 			if ( 'modified' == $args['show_date'] ) {
@@ -193,53 +157,10 @@ class WPGO_Walker_Page extends \Walker {
 	 * @param string $output            Passed by reference. Used to append additional content.
 	 */
 	public function display_element( $element, &$children_elements, $max_depth, $depth, $args, &$output ) {
-
-		// [D.Gwyer, Custom code #1 - START]
-		if ( apply_filters( '_simple_sitemap_visibility', false, $element->ID, $this->ssp_args ) ) {
-			return;
-		}
-		// [D.Gwyer, Custom code #1 - END]
-
-		if ( ! $element ) {
+		if ( Visibility_Policy::should_skip( $element->ID, $this->ssp_args ) ) {
 			return;
 		}
 
-		$id_field = $this->db_fields['id'];
-		$id       = $element->$id_field;
-
-		// display this element
-		$this->has_children = ! empty( $children_elements[ $id ] );
-		if ( isset( $args[0] ) && is_array( $args[0] ) ) {
-			$args[0]['has_children'] = $this->has_children; // Back-compat.
-		}
-
-		$cb_args = array_merge( array( &$output, $element, $depth ), $args );
-		call_user_func_array( array( $this, 'start_el' ), $cb_args );
-
-		// descend only when the depth is right and there are childrens for this element
-		if ( ( $max_depth == 0 || $max_depth > $depth + 1 ) && isset( $children_elements[ $id ] ) ) {
-
-			foreach ( $children_elements[ $id ] as $child ) {
-
-				if ( ! isset( $newlevel ) ) {
-					$newlevel = true;
-					// start the child delimiter
-					$cb_args = array_merge( array( &$output, $depth ), $args );
-					call_user_func_array( array( $this, 'start_lvl' ), $cb_args );
-				}
-				$this->display_element( $child, $children_elements, $max_depth, $depth + 1, $args, $output );
-			}
-			unset( $children_elements[ $id ] );
-		}
-
-		if ( isset( $newlevel ) && $newlevel ) {
-			// end the child delimiter
-			$cb_args = array_merge( array( &$output, $depth ), $args );
-			call_user_func_array( array( $this, 'end_lvl' ), $cb_args );
-		}
-
-		// end this element
-		$cb_args = array_merge( array( &$output, $element, $depth ), $args );
-		call_user_func_array( array( $this, 'end_el' ), $cb_args );
+		parent::display_element( $element, $children_elements, $max_depth, $depth, $args, $output );
 	}
 }

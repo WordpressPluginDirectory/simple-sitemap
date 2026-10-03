@@ -10,26 +10,54 @@ class Utility {
 	/**
 	 * Common root paths/directories.
 	 *
-	 * @var $module_roots
+	 * @var array<string, string>
 	 */
 	protected $module_roots;
 
 	/**
 	 * Custom plugin data.
 	 *
-	 * @var array
+	 * @var object
 	 */
 	protected $custom_plugin_data;
-	
+
 	/**
 	 * Main class constructor.
 	 *
 	 * @param array $module_roots Root plugin path/dir.
-	 * @param array $custom_plugin_data Plugin data.
+	 * @param object $custom_plugin_data Plugin data.
 	 */
 	public function __construct( $module_roots, $custom_plugin_data ) {
 		$this->module_roots       = $module_roots;
 		$this->custom_plugin_data = $custom_plugin_data;
+	}
+
+	/**
+	 * Return a plugin asset URL and a cache-busting version.
+	 *
+	 * Development builds use the file modification time when possible, while
+	 * production builds use the plugin version for stable browser caching.
+	 *
+	 * @param string $relative_path Path relative to the plugin root.
+	 * @param string $plugin_version Current plugin version.
+	 * @return array{uri: string, ver: int|string}
+	 */
+	public function get_enqueue_version( $relative_path, $plugin_version ) {
+		$relative_path = '/' . ltrim( $relative_path, '/\\' );
+		$file_path     = $this->module_roots['dir'] . ltrim( $relative_path, '/' );
+		$version       = $plugin_version;
+
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && file_exists( $file_path ) ) {
+			$file_modified = filemtime( $file_path );
+			if ( false !== $file_modified ) {
+				$version = $file_modified;
+			}
+		}
+
+		return array(
+			'uri' => $this->module_roots['uri'] . $relative_path,
+			'ver' => $version,
+		);
 	}
 
 	/**
@@ -66,13 +94,14 @@ class Utility {
 	/**
 	 * Decode and return the JSON encoded string in the form of Object.
 	 *
-	 * @todo Add to framework plugin.
-	 *
 	 * @param string $data JSON  encoded string.
 	 * @return array $new_features List of premium new available features.
 	 */
 	public static function filter_and_decode_json( $data ) {
 		$new_features = json_decode( $data );
+		if ( ! is_array( $new_features ) ) {
+			return array();
+		}
 
 		if ( ss_fs()->can_use_premium_code() ) {
 			// Remove all entries that are 'free-only'.
@@ -90,7 +119,7 @@ class Utility {
 	/**
 	 * Utilized for converting the custom styled block's border object to CSS string.
 	 *
-	 * @param object  $json_obj JSON encoded object.
+	 * @param string  $json_obj JSON encoded object.
 	 * @param boolean $border_bottom Parameter for border bottom state.
 	 * @param boolean $border_bottom_only Parameter for border bottom state.
 	 * @param boolean $border_top_only Parameter for border top state.
@@ -140,16 +169,79 @@ class Utility {
 
 			return $border_top . ' ' . $border_right . ' ' . $border_bottom . ' ' . $border_left;
 		}
+
+		return '';
 	}
 
 	/**
 	 * Gets the bool value.
 	 *
 	 * @param  mixed $val value to filter.
-	 * @return bool
+	 * @return bool|null
 	 */
 	public static function filter_boolean( $val ) {
 		return filter_var( $val, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
 	}
 
+	/**
+	 * Normalize a user-provided suffix for use in an HTML id and CSS selector.
+	 *
+	 * Common historic IDs containing letters, numbers, underscores, and hyphens
+	 * are preserved. Other characters are replaced instead of being allowed to
+	 * escape the generated selector.
+	 *
+	 * @param mixed  $value Raw identifier value.
+	 * @param string $fallback Value to use when no identifier characters remain.
+	 * @return string
+	 */
+	public static function sanitize_identifier( $value, $fallback = '' ) {
+		if ( ! is_scalar( $value ) ) {
+			return $fallback;
+		}
+
+		$identifier = preg_replace( '/[^A-Za-z0-9_-]+/', '-', trim( (string) $value ) );
+		$identifier = is_string( $identifier ) ? trim( $identifier, '-' ) : '';
+
+		return '' !== $identifier ? $identifier : $fallback;
+	}
+
+	/**
+	 * Validate a CSS value for a specific property.
+	 *
+	 * WordPress performs the property allow-list and protocol checks. The
+	 * preliminary delimiter check prevents a value from terminating the current
+	 * declaration or selector before it reaches safecss_filter_attr().
+	 *
+	 * @param string $property CSS property name.
+	 * @param mixed  $value Raw CSS value.
+	 * @return string A safe value without the property name, or an empty string.
+	 */
+	public static function sanitize_css_value( $property, $value ) {
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
+
+		$property = strtolower( trim( $property ) );
+		$value    = trim( (string) $value );
+
+		if ( '' === $value || ! preg_match( '/^[a-z-]+$/', $property ) ) {
+			return '';
+		}
+
+		if ( preg_match( '/[{};<>]|\/\*|\*\/|@import|expression\s*\(|url\s*\(/i', $value ) ) {
+			return '';
+		}
+
+		$declaration = safecss_filter_attr( $property . ':' . $value . ';' );
+		if ( '' === $declaration ) {
+			return '';
+		}
+
+		$pattern = '/^' . preg_quote( $property, '/' ) . '\s*:\s*(.*?)\s*;?$/i';
+		if ( 1 !== preg_match( $pattern, $declaration, $matches ) ) {
+			return '';
+		}
+
+		return trim( $matches[1] );
+	}
 } /* End class definition */

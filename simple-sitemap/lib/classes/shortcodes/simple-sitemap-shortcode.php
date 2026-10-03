@@ -15,14 +15,14 @@ class Simple_Sitemap_Shortcode {
 	/**
 	 * Store static class instance.
 	 *
-	 * @var $instance
+	 * @var self|null
 	 */
 	protected static $instance;
 
 	/**
 	 * Common root paths/directories.
 	 *
-	 * @var $module_roots
+	 * @var array<string, string>
 	 */
 	protected $module_roots;
 
@@ -43,7 +43,7 @@ class Simple_Sitemap_Shortcode {
 	 * Create plugin instance.
 	 *
 	 * @param array $module_roots Root plugin path/dir.
-	 * @return array $instance class instance.
+	 * @return self Class instance.
 	 */
 	public static function create_instance( $module_roots ) {
 		if ( ! self::$instance ) {
@@ -55,11 +55,11 @@ class Simple_Sitemap_Shortcode {
 	/**
 	 * Get plugin instance.
 	 *
-	 * @return array $instance class instance.
+	 * @return self Class instance.
 	 */
 	public static function get_instance() {
 		if ( ! self::$instance ) {
-			die( 'Error: Class instance hasn\'t been created yet.' );
+			throw new \RuntimeException( 'Content Sitemap shortcode has not been initialized.' );
 		}
 		return self::$instance;
 	}
@@ -79,7 +79,7 @@ class Simple_Sitemap_Shortcode {
 	/**
 	 * Render sitemap from an editor shortcode.
 	 *
-	 * @param array $attributes Shortcode attributes.
+	 * @param array|string $attributes Shortcode attributes.
 	 * @return string           Sitemap render.
 	 */
 	public function render_shortcode( $attributes ) {
@@ -87,7 +87,7 @@ class Simple_Sitemap_Shortcode {
 		if ( ! is_array( $attributes ) ) {
 			$attributes = array();
 		} else {
-			$attributes = array_map('sanitize_text_field', wp_unslash($attributes));
+			$attributes = array_map( 'sanitize_text_field', wp_unslash( $attributes ) );
 		}
 
 		$attributes['gutenberg_block'] = false;
@@ -109,24 +109,7 @@ class Simple_Sitemap_Shortcode {
 
 			// Attributes come from the shortcode.
 			$args = shortcode_atts(
-				array(
-					'id'            => '',
-					'render'        => '',
-					'page_depth'    => 0,
-					'orderby'       => 'title',
-					'order'         => 'asc',
-					'show_excerpt'  => 'false',
-					'show_label'    => 'true',
-					'links'         => 'true',
-					'types'         => 'page',
-					'target_blank'  => false,
-
-					// Following attributes don't have block support yet.
-					'title_tag'     => '',
-					'post_type_tag' => 'h3',
-					'excerpt_tag'   => 'div',
-					'container_tag' => 'ul',
-				),
+				Attribute_Schema::content_shortcode_defaults(),
 				$attributes,
 				'simple-sitemap'
 			);
@@ -147,12 +130,14 @@ class Simple_Sitemap_Shortcode {
 
 			// Set up block types coming from block.
 			$args['types'] = '';
-			$block_cpts    = json_decode( $args['block_post_types'] );
+			$block_cpts    = isset( $args['block_post_types'] ) && is_string( $args['block_post_types'] ) ? json_decode( $args['block_post_types'] ) : array();
 			if ( empty( $block_cpts ) ) {
 				$block_err = '<div>Select one or more post types for the sitemap block via the \'General Settings\' panel.</div>';
 			} else {
 				foreach ( $block_cpts as $cpt ) {
-					$args['types'] .= $cpt->value . ', ';
+					if ( is_object( $cpt ) && isset( $cpt->value ) ) {
+						$args['types'] .= sanitize_key( $cpt->value ) . ', ';
+					}
 				}
 			}
 
@@ -166,8 +151,12 @@ class Simple_Sitemap_Shortcode {
 			$args = Shortcode_Utility::format_booleans( $args );
 		}
 
+		if ( Sitemap_Pagination::is_enabled( $args ) ) {
+			$args['_pagination_key'] = Sitemap_Pagination::create_instance_key( (string) $args['id'], $args );
+		}
+
 		// Format attributes as necessary.
-		if($args['id'] === '') {
+		if ( $args['id'] === '' ) {
 			$args['id'] = uniqid(); // Helps avoid conflicts if using multiple sitemaps on the same page. e.g. 5d026c6168954.
 		}
 
@@ -175,8 +164,8 @@ class Simple_Sitemap_Shortcode {
 		$args['shortcode_type'] = 'normal';
 
 		// Sanitize text.
-		$args['id'] = sanitize_text_field($args['id']);
-		$args['types'] = sanitize_text_field($args['types']);
+		$args['id']    = Utility::sanitize_identifier( $args['id'], uniqid() );
+		$args['types'] = sanitize_text_field( $args['types'] );
 
 		// Escape tag names.
 		$args['container_tag'] = tag_escape( $args['container_tag'] );
@@ -186,7 +175,7 @@ class Simple_Sitemap_Shortcode {
 
 		// Force 'ul' or 'ol' to be used as the container tag.
 		$allowed_container_tags = array( 'ul', 'ol' );
-		if ( ! in_array( $args['container_tag'], $allowed_container_tags ) ) {
+		if ( ! in_array( $args['container_tag'], $allowed_container_tags, true ) ) {
 			$args['container_tag'] = 'ul';
 		}
 
@@ -200,40 +189,56 @@ class Simple_Sitemap_Shortcode {
 		// ** OUTPUT START **
 		// ******************
 
-		// Start output buffering (so that existing content in the [simple-sitemap] post doesn't get shoved to the bottom of the post.
-		ob_start();
-
 		if ( $block_err ) {
 			return $block_err;
 		}
+
+		$sitemap = '';
 
 		// Output styles.
 		$container_css_id          = '#simple-sitemap-container-' . $args['id'];
 		$container_css_class       = '.simple-sitemap-container-' . $args['id']; // Applies styles to tabbed AND normal sitemap.
 		$container_tab             = $container_css_class . '.tab-enabled'; // Applies styles ONLY to tabbed sitemap.
 		$sitemap_styles            = apply_filters( '_simple_sitemap_styles', '', $args, $container_css_id, $container_css_class );
-		$tab_color                 = apply_filters( '_simple_sitemap_tab_color', '#ffffff', $args );
-		$tab_header_bg             = apply_filters( '_simple_sitemap_tab_header_bg', '#de5737', $args );
+		$filtered_tab_color        = sanitize_hex_color( apply_filters( '_simple_sitemap_tab_color', '#ffffff', $args ) );
+		$filtered_tab_header_bg    = sanitize_hex_color( apply_filters( '_simple_sitemap_tab_header_bg', '#de5737', $args ) );
+		$tab_color                 = ! empty( $filtered_tab_color ) ? $filtered_tab_color : '#ffffff';
+		$tab_header_bg             = ! empty( $filtered_tab_header_bg ) ? $filtered_tab_header_bg : '#de5737';
 		$post_type_label_padding   = apply_filters( '_simple_sitemap_post_type_label_pd', '10px 20px', $args );
 		$post_type_label_font_size = apply_filters( '_simple_sitemap_post_type_label_fs', '', $args );
 
 		$sitemap_tab_styles = '';
 		if ( 'tab' === $args['render'] ) {
+			wp_enqueue_script( 'simple-sitemap-tabs' );
 			$sitemap_tab_styles .= $container_tab . ' .panel { border-top: 4px solid ' . $tab_header_bg . '; } ';
 			$sitemap_tab_styles .= $container_tab . ' input:checked + label { background-color: ' . $tab_header_bg . '; } ';
 			$sitemap_tab_styles .= $container_tab . ' input:checked + label > * { color: ' . $tab_color . '; } ';
 		}
 
-		if ( ! empty( $sitemap_tab_styles ) || ! empty( $sitemap_styles ) ) {
-			echo '<style type="text/css">' . $sitemap_tab_styles . $sitemap_styles . '</style>';
+		$post_types      = array_map( 'trim', explode( ',', $args['types'] ) ); // Convert comma separated string to array.
+		$post_type_count = count( $post_types );
+		if ( 'tab' === $args['render'] && $post_type_count > 10 ) {
+			for ( $tab_index = 11; $tab_index <= $post_type_count; ++$tab_index ) {
+				$tab_id              = 'simple-sitemap-tab-' . $tab_index . '-' . $args['id'];
+				$sitemap_tab_styles .= $container_tab . ' input#' . $tab_id . ':checked ~ .simple-sitemap-content .simple-sitemap-tab-' . $tab_index . ' { display: block; } ';
+			}
 		}
 
-		$post_types            = array_map( 'trim', explode( ',', $args['types'] ) ); // Convert comma separated string to array.
+		if ( ! empty( $sitemap_tab_styles ) || ! empty( $sitemap_styles ) ) {
+			$sitemap .= '<style type="text/css">';
+			$sitemap .= wp_kses( $sitemap_tab_styles . $sitemap_styles, array() );
+			$sitemap .= '</style>';
+		}
+
 		$registered_post_types = get_post_types();
 
 		$sitemap_unique_id = 'simple-sitemap-container-' . $args['id'];
-		$container_classes = 'simple-sitemap-container ' . $sitemap_unique_id . $render_class . $container_format_class;
-		echo '<div id="' . esc_attr( $sitemap_unique_id ) . '" class="' . esc_attr( $container_classes ) . '">';
+		$container_classes = 'simple-sitemap-container simple-sitemap-spacing-root ' . $sitemap_unique_id . $render_class . $container_format_class;
+		$container_classes = apply_filters( '_simple_sitemap_container_classes', $container_classes, $args );
+
+		$sitemap       .= '<div id="' . esc_attr( $sitemap_unique_id ) . '" class="' . esc_attr( $container_classes ) . '"' . Sitemap_Styles::style_attribute( $args ) . '>';
+		$before_content = apply_filters( '_simple_sitemap_before_content', '', $args, $sitemap_unique_id );
+		$sitemap       .= is_string( $before_content ) ? wp_kses( $before_content, self::before_content_allowed_html() ) : '';
 
 		// Conditionally output tab headers.
 		if ( 'tab' === $args['render'] ) :
@@ -251,17 +256,21 @@ class Simple_Sitemap_Shortcode {
 
 				$post_type_label_styles = Shortcode_Utility::get_post_type_label_styles( $post_type_label_padding );
 
-				echo '<input type="radio" name="tab-' . esc_attr( $args['id'] ) . '" id="simple-sitemap-tab-' . esc_attr( $header_tab_index ) . '-' . esc_attr( $args['id'] ) . '" ' . esc_attr( $checked ). '>
-				<label' . esc_attr( $post_type_label_styles ). ' for="simple-sitemap-tab-' . esc_attr( $header_tab_index ) . '-' . esc_attr( $args['id'] ) . '">' . wp_kses_post( $post_type_label ) . '</label>';
+				$tab_id   = 'simple-sitemap-tab-' . $header_tab_index . '-' . $args['id'];
+				$label_id = 'simple-sitemap-tab-label-' . $header_tab_index . '-' . $args['id'];
+				$panel_id = 'simple-sitemap-panel-' . $header_tab_index . '-' . $args['id'];
 
-				$header_tab_index++;
+				$sitemap .= '<input class="simple-sitemap-tab-control" type="radio" name="tab-' . esc_attr( $args['id'] ) . '" id="' . esc_attr( $tab_id ) . '" aria-controls="' . esc_attr( $panel_id ) . '" ' . esc_attr( $checked ) . '>
+				<label id="' . esc_attr( $label_id ) . '"' . esc_attr( $post_type_label_styles ) . ' for="' . esc_attr( $tab_id ) . '">' . wp_kses_post( $post_type_label ) . '</label>';
+
+				++$header_tab_index;
 			}
 
 		endif;
 
 		// Tab panel wrapper - open.
-		if ( $args['render'] == 'tab' ) {
-			echo '<div class="simple-sitemap-content">'; }
+		if ( 'tab' === $args['render'] ) {
+			$sitemap .= '<div class="simple-sitemap-content">'; }
 
 		// Conditionally create tab panels.
 		$header_tab_index = 1; // Reset to 1.
@@ -283,40 +292,120 @@ class Simple_Sitemap_Shortcode {
 			$post_type_label = Shortcode_Utility::get_post_type_label( $args, $post_type, $post_type_label_font_size );
 
 			// Tab panel wrapper - open.
-			if ( 'tab' == $args['render'] ) {
+			if ( 'tab' === $args['render'] ) {
 				$list_item_wrapper_class = 'simple-sitemap-wrap simple-sitemap-tab-' . $header_tab_index . ' panel';
+				$panel_id                = 'simple-sitemap-panel-' . $header_tab_index . '-' . $args['id'];
+				$label_id                = 'simple-sitemap-tab-label-' . $header_tab_index . '-' . $args['id'];
 			} else {
 				$list_item_wrapper_class = 'simple-sitemap-wrap';
+				$panel_id                = '';
+				$label_id                = '';
 			}
 
-			$header_tab_index++;
-			echo '<div class="' . esc_attr( $list_item_wrapper_class ) . '">';
-			if ( 'tab' != $args['render'] ) {
-				echo wp_kses_post( $post_type_label );
+			++$header_tab_index;
+			if ( '' !== $panel_id ) {
+				$sitemap .= '<div id="' . esc_attr( $panel_id ) . '" role="tabpanel" aria-labelledby="' . esc_attr( $label_id ) . '" class="' . esc_attr( $list_item_wrapper_class ) . '">';
+			} else {
+				$sitemap .= '<div class="' . esc_attr( $list_item_wrapper_class ) . '">';
+			}
+			if ( 'tab' !== $args['render'] ) {
+				$sitemap .= wp_kses_post( $post_type_label );
 			}
 
-			$query_args = Shortcode_Utility::get_query_args( $args, $post_type );
-			Shortcode_Utility::render_list_items( $args, $post_type, $query_args );
+			$section_args = self::get_section_args( $args, $post_type );
+			$query_args   = Sitemap_Query::build_args( $section_args, $post_type );
+			$sitemap     .= wp_kses_post( Shortcode_Utility::get_list_items_html( $section_args, $post_type, $query_args ) );
+			$sitemap     .= '</div>';
 
 		endforeach;
 
 		// Tab panel wrapper - close.
 		if ( 'tab' === $args['render'] ) {
-			echo '</div>';
+			$sitemap .= '</div>';
 		} // .simple-sitemap-content
 
-		echo '</div>'; // .simple-sitemap-container
+		$sitemap .= '</div>'; // .simple-sitemap-container
 
-		// @todo check we still need this
-		echo '<br style="clear: both;">'; // make sure content after the sitemap is rendered properly if taken out.
-
-		$sitemap = ob_get_contents();
-		ob_end_clean();
+		// Retained for front-end layout compatibility with existing themes.
+		$sitemap .= '<br style="clear: both;">';
 
 		// ****************
 		// ** OUTPUT END **
 		// ****************
 
 		return $sitemap;
+	}
+
+	/**
+	 * Allowed markup for progressively enhanced controls before sitemap content.
+	 *
+	 * @return array<string, array<string, bool>>
+	 */
+	private static function before_content_allowed_html() {
+		return array(
+			'div'    => array(
+				'class'  => true,
+				'hidden' => true,
+			),
+			'label'  => array( 'for' => true ),
+			'input'  => array(
+				'id'               => true,
+				'class'            => true,
+				'type'             => true,
+				'autocomplete'     => true,
+				'aria-controls'    => true,
+				'aria-describedby' => true,
+				'placeholder'      => true,
+				'data-no-results'  => true,
+			),
+			'button' => array(
+				'class'  => true,
+				'type'   => true,
+				'hidden' => true,
+			),
+			'p'      => array(
+				'id'        => true,
+				'class'     => true,
+				'aria-live' => true,
+			),
+		);
+	}
+
+	/**
+	 * Apply bounded per-section overrides supplied by the licensed block UI.
+	 *
+	 * Empty settings return the original values, preserving legacy rendering.
+	 *
+	 * @param array<string, mixed> $args Normalized sitemap arguments.
+	 * @param string               $post_type Current section post type.
+	 * @return array<string, mixed>
+	 */
+	public static function get_section_args( $args, $post_type ) {
+		$settings = isset( $args['section_settings'] ) && is_array( $args['section_settings'] ) ? $args['section_settings'] : array();
+		$section  = isset( $settings[ $post_type ] ) && is_array( $settings[ $post_type ] ) ? $settings[ $post_type ] : array();
+		if ( empty( $section ) ) {
+			return $args;
+		}
+
+		$allowed_orderby = array( 'title', 'date', 'ID', 'author', 'name', 'modified', 'menu_order', 'comment_count' );
+		if ( isset( $section['orderby'] ) && in_array( $section['orderby'], $allowed_orderby, true ) ) {
+			$args['orderby'] = $section['orderby'];
+		}
+		if ( isset( $section['order'] ) ) {
+			$args['order'] = 'desc' === strtolower( (string) $section['order'] ) ? 'desc' : 'asc';
+		}
+		foreach ( array( 'include', 'exclude' ) as $id_key ) {
+			if ( isset( $section[ $id_key ] ) ) {
+				$args[ $id_key ] = implode( ',', Shortcode_Utility::parse_id_list( $section[ $id_key ] ) );
+			}
+		}
+		if ( isset( $section['num_posts'] ) && is_numeric( $section['num_posts'] ) ) {
+			$num_posts         = (int) $section['num_posts'];
+			$args['num_posts'] = -1 === $num_posts ? -1 : min( 200, max( 1, $num_posts ) );
+		}
+
+		$filtered = apply_filters( 'simple_sitemap_section_args', $args, $post_type, $section );
+
+		return is_array( $filtered ) ? $filtered : $args;
 	}
 }
